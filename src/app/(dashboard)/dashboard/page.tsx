@@ -64,12 +64,12 @@ export default function DashboardPage() {
         backgroundColor: darkMode ? 'rgba(10, 15, 20, 0.58)' : 'rgba(255, 255, 255, 0.55)',
         borderColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
       }}>
-        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-8">
-            <Link href="/dashboard" className={`font-bold text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/dashboard" className={`font-bold text-lg sm:text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
               Test Portal
             </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
               <Link href="/dashboard" className={`font-medium transition-colors ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
                 Dashboard
               </Link>
@@ -85,7 +85,26 @@ export default function DashboardPage() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => {
+                const html = document.documentElement;
+                html.classList.toggle('dark');
+                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+              }}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
             <Link href="/profile" className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
               <User className="h-5 w-5" />
             </Link>
@@ -96,19 +115,19 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Welcome Section */}
-        <div className="mb-12">
-          <h1 className={`text-4xl font-bold mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+        <div className="mb-8 sm:mb-12">
+          <h1 className={`text-3xl sm:text-4xl font-bold mb-2 sm:mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
             Welcome back, {user?.name}!
           </h1>
-          <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`text-base sm:text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Track your progress and continue preparing for your exams
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
           <ContentCard
             icon={Clock}
             title="Today's Study Time"
@@ -139,10 +158,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Available Tests Section */}
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-8 sm:mb-12">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4">
             <div>
-              <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+              <h2 className={`text-2xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
                 Available Tests
               </h2>
               <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -151,7 +170,7 @@ export default function DashboardPage() {
             </div>
             <Link 
               href="/tests"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors text-center ${
                 darkMode
                   ? 'bg-[#2596be]/20 text-[#60DFFF] hover:bg-[#2596be]/30'
                   : 'bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20'
@@ -161,7 +180,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {tests.map((test) => (
               <ContentCard
                 key={test.id}
@@ -180,7 +199,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <ContentCard
             href="/tests"
             icon={BookOpen}

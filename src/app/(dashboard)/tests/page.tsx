@@ -81,12 +81,12 @@ export default function TestsPage() {
         backgroundColor: darkMode ? 'rgba(10, 15, 20, 0.58)' : 'rgba(255, 255, 255, 0.55)',
         borderColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
       }}>
-        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-8">
-            <Link href="/dashboard" className={`font-bold text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/dashboard" className={`font-bold text-lg sm:text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
               Test Portal
             </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
               <Link href="/dashboard" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
                 Dashboard
               </Link>
@@ -102,7 +102,26 @@ export default function TestsPage() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => {
+                const html = document.documentElement;
+                html.classList.toggle('dark');
+                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+              }}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
             <Link href="/profile" className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
               <User className="h-5 w-5" />
             </Link>
@@ -113,22 +132,22 @@ export default function TestsPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className={`text-4xl font-bold mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+        <div className="mb-6 sm:mb-8">
+          <h1 className={`text-3xl sm:text-4xl font-bold mb-2 sm:mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
             All Tests
           </h1>
-          <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`text-base sm:text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Browse and start practicing with our comprehensive test series
           </p>
         </div>
 
         {/* Filters */}
-        <div className={`p-6 rounded-2xl border backdrop-blur-2xl mb-8 ${
+        <div className={`p-4 sm:p-6 rounded-2xl border backdrop-blur-2xl mb-6 sm:mb-8 ${
           darkMode ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'
         }`}>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className={`absolute left-3 top-3 h-5 w-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
@@ -182,7 +201,7 @@ export default function TestsPage() {
         </div>
 
         {/* Results Count */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Showing {filteredTests.length} test{filteredTests.length !== 1 ? 's' : ''}
           </p>
@@ -190,19 +209,19 @@ export default function TestsPage() {
 
         {/* Tests Grid */}
         {filteredTests.length === 0 ? (
-          <div className={`p-12 rounded-2xl border backdrop-blur-2xl text-center ${
+          <div className={`p-8 sm:p-12 rounded-2xl border backdrop-blur-2xl text-center ${
             darkMode ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'
           }`}>
-            <FileText className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
-            <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <FileText className={`h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+            <h3 className={`text-base sm:text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               No tests found
             </h3>
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Try adjusting your search or filters
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredTests.map((test) => (
               <ContentCard
                 key={test.id}

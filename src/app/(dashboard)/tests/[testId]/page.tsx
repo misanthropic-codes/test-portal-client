@@ -6,18 +6,30 @@ import { mockTestService } from '@/services/mock/mockData';
 import { Test } from '@/types';
 import Link from 'next/link';
 import { formatExamType, formatTestType, formatDifficulty } from '@/utils/formatters';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Clock, FileText, User, LogOut, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Clock, FileText, Award, AlertCircle, CheckCircle, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TestDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const [test, setTest] = useState<Test | null>(null);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setDarkMode(document.documentElement.classList.contains("dark"));
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    setDarkMode(document.documentElement.classList.contains("dark"));
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const loadTest = async () => {
@@ -35,262 +47,330 @@ export default function TestDetailsPage() {
     loadTest();
   }, [params.testId]);
 
-  const handleStartTest = async () => {
-    if (!test) return;
-    
-    try {
-      const attempt = await mockTestService.startTest(test.id);
-      router.push(`/test/${attempt.id}`);
-    } catch (error) {
-      console.error('Error starting test:', error);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2596be]"></div>
       </div>
     );
   }
 
   if (!test) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="py-12 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Test Not Found</h3>
-            <p className="text-muted-foreground mb-6">
-              The test you're looking for doesn't exist or has been removed.
-            </p>
-            <Button asChild>
-              <Link href="/tests">Browse Tests</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
+        <div className="text-center">
+          <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Test Not Found</h2>
+          <Link href="/tests" className="text-[#2596be] hover:underline">
+            Back to Tests
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="font-bold text-xl">
+      <header className="sticky top-0 z-50 w-full border-b backdrop-blur-xl" style={{
+        backgroundColor: darkMode ? 'rgba(10, 15, 20, 0.58)' : 'rgba(255, 255, 255, 0.55)',
+        borderColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
+      }}>
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/dashboard" className={`font-bold text-lg sm:text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
               Test Portal
             </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
+              <Link href="/dashboard" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
                 Dashboard
               </Link>
-              <Link href="/tests" className="text-foreground hover:text-primary transition-colors">
+              <Link href="/tests" className={`font-medium transition-colors ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
                 Tests
               </Link>
-              <Link href="/analytics" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/analytics" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
                 Analytics
               </Link>
-              <Link href="/history" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/history" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
                 History
               </Link>
             </nav>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/profile">
-                <User className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={logout}>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => {
+                const html = document.documentElement;
+                html.classList.toggle('dark');
+                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+              }}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            <Link href="/profile" className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
+              <User className="h-5 w-5" />
+            </Link>
+            <button onClick={logout} className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
               <LogOut className="h-5 w-5" />
-            </Button>
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="container py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Back Button */}
-        <Button variant="ghost" size="sm" asChild className="mb-6">
-          <Link href="/tests">← Back to Tests</Link>
-        </Button>
+        <button
+          onClick={() => router.back()}
+          className={`flex items-center gap-2 mb-6 transition-colors ${
+            darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'
+          }`}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="text-sm font-medium">Back to Tests</span>
+        </button>
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Test Header */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant="default">{formatExamType(test.examType)}</Badge>
-                  <Badge variant="outline">{formatTestType(test.testType)}</Badge>
-                  <Badge variant="secondary">{formatDifficulty(test.difficulty)}</Badge>
-                </div>
-                <CardTitle className="text-2xl">{test.title}</CardTitle>
-                <CardDescription className="text-base mt-2">
-                  {test.description}
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+              darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+            }`}>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  darkMode ? 'bg-[#2596be]/20 text-[#60DFFF]' : 'bg-[#2596be]/10 text-[#2596be]'
+                }`}>
+                  {formatExamType(test.examType)}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  darkMode ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {formatTestType(test.testType)}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  darkMode ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {formatDifficulty(test.difficulty)}
+                </span>
+              </div>
 
-            {/* Test Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="text-lg font-semibold">{test.duration} minutes</p>
+              <h1 className={`text-2xl sm:text-3xl font-bold mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                {test.title}
+              </h1>
+              <p className={`text-sm sm:text-base ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {test.description}
+              </p>
+            </div>
+
+            {/* Test Stats */}
+            <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+              darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+            }`}>
+              <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                Test Details
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                    <p className={`text-xs font-semibold uppercase ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Duration
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Questions</p>
-                    <p className="text-lg font-semibold">{test.totalQuestions}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Marks</p>
-                    <p className="text-lg font-semibold">{test.totalMarks}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Marking Scheme</p>
-                    <p className="text-sm">+{test.positiveMarks} / {test.negativeMarks}</p>
-                  </div>
+                  <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {test.duration} min
+                  </p>
                 </div>
 
-                {test.attemptsCount > 0 && (
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Attempts</p>
-                        <p className="text-lg font-semibold">{test.attemptsCount}</p>
-                      </div>
-                      {test.averageScore && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Average Score</p>
-                          <p className="text-lg font-semibold">{test.averageScore.toFixed(1)}</p>
-                        </div>
-                      )}
-                    </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                    <p className={`text-xs font-semibold uppercase ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Questions
+                    </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {test.totalQuestions}
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Award className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                    <p className={`text-xs font-semibold uppercase ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Total Marks
+                    </p>
+                  </div>
+                  <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {test.totalMarks}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Sections */}
             {test.sections && test.sections.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sections</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {test.sections.map((section, index) => (
-                      <div
-                        key={section.id}
-                        className="flex items-center justify-between p-4 rounded-lg border"
-                      >
-                        <div>
-                          <h4 className="font-semibold">{section.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {section.questionCount} Questions • {section.totalMarks} Marks
-                          </p>
-                        </div>
-                        {section.duration && (
-                          <Badge variant="outline">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {section.duration} min
-                          </Badge>
+              <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+                darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+              }`}>
+                <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                  Test Sections
+                </h2>
+                <div className="space-y-3">
+                  {test.sections.map((section, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-lg ${
+                        darkMode ? 'bg-white/5' : 'bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {section.name}
+                        </h3>
+                        {section.isTimed && (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            darkMode ? 'bg-[#2596be]/20 text-[#60DFFF]' : 'bg-[#2596be]/10 text-[#2596be]'
+                          }`}>
+                            Timed Section
+                          </span>
                         )}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <div className="flex gap-4 text-sm">
+                        <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                          {section.questionCount} questions
+                        </span>
+                        {section.duration && (
+                          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                            {section.duration} min
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Instructions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Instructions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 list-disc list-inside text-sm">
-                  <li>Ensure stable internet connection before starting</li>
-                  <li>The test will auto-submit when time expires</li>
-                  <li>You can mark questions for review and come back later</li>
-                  <li>Negative marking: {test.negativeMarks} for wrong answers</li>
-                  <li>Calculator and rough sheets are not allowed</li>
-                  <li>Once submitted, you cannot reattempt the test</li>
-                </ul>
-              </CardContent>
-            </Card>
+            <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+              darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+            }`}>
+              <h2 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                Instructions
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${darkMode ? 'text-[#60DFFF]' : 'text-[#2596be]'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Read all questions carefully before answering
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${darkMode ? 'text-[#60DFFF]' : 'text-[#2596be]'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Each question carries equal marks unless specified
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${darkMode ? 'text-[#60DFFF]' : 'text-[#2596be]'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Negative marking may apply for incorrect answers
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${darkMode ? 'text-[#60DFFF]' : 'text-[#2596be]'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    You can mark questions for review and return to them later
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${darkMode ? 'text-[#60DFFF]' : 'text-[#2596be]'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Test will auto-submit when time expires
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Start Test Card */}
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle>Ready to Start?</CardTitle>
-                <CardDescription>
-                  Make sure you have enough time to complete the test
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">{test.duration} min</span>
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-6">
+              {/* Start Test Card */}
+              <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+                darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+              }`}>
+                <h3 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                  Ready to Start?
+                </h3>
+                
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-sm">
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Duration:</span>
+                    <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {test.duration} min
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Questions</span>
-                    <span className="font-medium">{test.totalQuestions}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Questions:</span>
+                    <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {test.totalQuestions}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total Marks</span>
-                    <span className="font-medium">{test.totalMarks}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Total Marks:</span>
+                    <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {test.totalMarks}
+                    </span>
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={handleStartTest}
+                <button
+                  onClick={() => router.push(`/test/${test.id}/start`)}
+                  className="w-full py-3 px-4 bg-[#2596be] text-white font-semibold rounded-lg shadow-lg hover:bg-[#1e7ca0] transition-colors mb-3"
                 >
                   Start Test Now
-                </Button>
+                </button>
 
-                <p className="text-xs text-center text-muted-foreground">
+                <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                   By starting, you agree to complete the test in one sitting
                 </p>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">Verified Test</p>
-                    <p className="text-xs text-muted-foreground">Quality assured</p>
+              {/* Quick Stats */}
+              <div className={`p-6 rounded-2xl border backdrop-blur-2xl shadow-lg ${
+                darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
+              }`}>
+                <h3 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                  Quick Stats
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className={`h-4 w-4 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
+                    <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Verified Test
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                    <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {test.attemptCount || 0} students attempted
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="h-5 w-5 text-chart-2" />
-                  <div>
-                    <p className="text-sm font-medium">{test.attemptsCount || 0} Students</p>
-                    <p className="text-xs text-muted-foreground">Have attempted</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </main>
