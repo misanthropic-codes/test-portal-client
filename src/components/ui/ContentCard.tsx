@@ -1,29 +1,27 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { LucideIcon } from "lucide-react";
+import Link from 'next/link';
+import { LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-export interface ContentCardProps {
-  title: string;
-  description?: string;
+interface ContentCardProps {
   icon?: LucideIcon;
-  href?: string;
+  title: string;
+  description: string;
   badge?: string;
   metadata?: { label: string; value: string }[];
-  action?: { label: string; onClick: () => void };
+  href?: string;
   className?: string;
 }
 
 export default function ContentCard({
+  icon: Icon,
   title,
   description,
-  icon: Icon,
-  href,
   badge,
   metadata,
-  action,
-  className = "",
+  href,
+  className = '',
 }: ContentCardProps) {
   const [darkMode, setDarkMode] = useState(false);
 
@@ -31,120 +29,90 @@ export default function ContentCard({
     const observer = new MutationObserver(() => {
       setDarkMode(document.documentElement.classList.contains("dark"));
     });
-
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
     });
-
     setDarkMode(document.documentElement.classList.contains("dark"));
     return () => observer.disconnect();
   }, []);
 
-  const CardContent = (
-    <div
-      className={`relative p-6 rounded-2xl border backdrop-blur-2xl hover:scale-[1.02] transition-all duration-300 h-full ${
-        darkMode
-          ? "bg-white/5 border-white/10 hover:bg-white/10 hover:shadow-2xl hover:shadow-[#2596be]/20"
-          : "bg-white/80 border-gray-200 hover:bg-white hover:shadow-2xl hover:shadow-[#2596be]/10"
-      } ${className}`}
-    >
-      {/* Badge */}
-      {badge && (
-        <div className="absolute top-4 right-4">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              darkMode
-                ? "bg-[#2596be]/20 text-[#60DFFF]"
-                : "bg-[#2596be]/10 text-[#2596be]"
-            }`}
-          >
-            {badge}
-          </span>
-        </div>
-      )}
+  const cardClasses = `
+    group relative rounded-2xl border backdrop-blur-2xl shadow-lg
+    transition-all duration-300 hover:scale-[1.02]
+    ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'}
+    ${className}
+  `;
 
-      {/* Icon */}
-      {Icon && (
-        <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-            darkMode ? "bg-[#2596be]/20" : "bg-[#2596be]/10"
-          }`}
-        >
-          <Icon
-            className={darkMode ? "text-[#60DFFF]" : "text-[#2596be]"}
-            size={24}
-          />
+  const content = (
+    <div className="p-4 sm:p-6">
+      {/* Header with icon and badge */}
+      <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {Icon && (
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-[#2596be]/20' : 'bg-[#2596be]/10'}`}>
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-[#2596be]" />
+            </div>
+          )}
+          {badge && (
+            <span className={`
+              px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap
+              ${darkMode ? 'bg-[#2596be]/20 text-[#60DFFF]' : 'bg-[#2596be]/10 text-[#2596be]'}
+            `}>
+              {badge}
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Title */}
-      <h3
-        className={`text-xl font-bold mb-2 ${
-          darkMode ? "text-white" : "text-gray-900"
-        }`}
-      >
+      <h3 className={`
+        text-base sm:text-lg font-bold mb-2
+        line-clamp-2
+        ${darkMode ? 'text-white' : 'text-gray-900'}
+      `}>
         {title}
       </h3>
 
       {/* Description */}
-      {description && (
-        <p
-          className={`text-sm mb-4 ${
-            darkMode ? "text-gray-400" : "text-gray-600"
-          }`}
-        >
-          {description}
-        </p>
-      )}
+      <p className={`
+        text-sm mb-3 sm:mb-4
+        line-clamp-2
+        ${darkMode ? 'text-gray-400' : 'text-gray-600'}
+      `}>
+        {description}
+      </p>
 
       {/* Metadata */}
       {metadata && metadata.length > 0 && (
-        <div className="flex flex-wrap gap-4 mb-4">
-          {metadata.map((item, idx) => (
-            <div key={idx}>
-              <p
-                className={`text-xs font-semibold uppercase tracking-wider ${
-                  darkMode ? "text-gray-500" : "text-gray-400"
-                }`}
-              >
+        <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 sm:pt-4 border-t" style={{
+          borderColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+        }}>
+          {metadata.map((item, index) => (
+            <div key={index} className="flex flex-col min-w-0">
+              <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 {item.label}
-              </p>
-              <p
-                className={`text-sm font-medium ${
-                  darkMode ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
+              </span>
+              <span className={`
+                text-sm font-semibold truncate
+                ${darkMode ? 'text-white' : 'text-gray-900'}
+              `}>
                 {item.value}
-              </p>
+              </span>
             </div>
           ))}
         </div>
-      )}
-
-      {/* Action Button */}
-      {action && (
-        <button
-          onClick={action.onClick}
-          className={`mt-4 w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-            darkMode
-              ? "bg-[#2596be]/20 text-[#60DFFF] hover:bg-[#2596be]/30"
-              : "bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20"
-          }`}
-        >
-          {action.label}
-        </button>
       )}
     </div>
   );
 
   if (href) {
     return (
-      <Link href={href} className="block h-full">
-        {CardContent}
+      <Link href={href} className={cardClasses}>
+        {content}
       </Link>
     );
   }
 
-  return CardContent;
+  return <div className={cardClasses}>{content}</div>;
 }
