@@ -32,7 +32,7 @@ export default function RegisterPage() {
       attributeFilter: ["class"],
     });
 
-    setDark Mode(document.documentElement.classList.contains("dark"));
+    setDarkMode(document.documentElement.classList.contains("dark"));
     return () => observer.disconnect();
   }, []);
 

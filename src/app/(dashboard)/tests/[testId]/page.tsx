@@ -6,7 +6,7 @@ import { mockTestService } from '@/services/mock/mockData';
 import { Test } from '@/types';
 import Link from 'next/link';
 import { formatExamType, formatTestType, formatDifficulty } from '@/utils/formatters';
-import { ArrowLeft, Clock, FileText, Award, AlertCircle, CheckCircle, User, LogOut } from 'lucide-react';
+import { ArrowLeft, Clock, FileText, Award, AlertCircle, CheckCircle, User, LogOut, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TestDetailsPage() {
@@ -336,11 +336,21 @@ export default function TestDetailsPage() {
                 </div>
 
                 <button
-                  onClick={() => router.push(`/test/${test.id}/start`)}
-                  className="w-full py-3 px-4 bg-[#2596be] text-white font-semibold rounded-lg shadow-lg hover:bg-[#1e7ca0] transition-colors mb-3"
-                >
-                  Start Test Now
-                </button>
+              onClick={async () => {
+                if (!test) return;
+                try {
+                  const attempt = await mockTestService.startTest(test.id);
+                  // Store attempt in localStorage for the test page to retrieve
+                  localStorage.setItem(`attempt_${attempt.attemptId}`, JSON.stringify(attempt));
+                  router.push(`/test/${attempt.attemptId}`);
+                } catch (error) {
+                  console.error('Error starting test:', error);
+                }
+              }}
+              className="w-full py-3 px-4 bg-[#2596be] text-white font-semibold rounded-lg shadow-lg hover:bg-[#1e7ca0] transition-colors"
+            >
+              Start Test Now
+            </button>
 
                 <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                   By starting, you agree to complete the test in one sitting
