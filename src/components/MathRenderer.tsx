@@ -1,8 +1,19 @@
 'use client';
 
 import katex from 'katex';
-import 'katex/dist/katex.min.css';
 import { useEffect, useRef } from 'react';
+
+// Add KaTeX CSS to head
+if (typeof window !== 'undefined') {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+  link.integrity = 'sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV';
+  link.crossOrigin = 'anonymous';
+  if (!document.querySelector('link[href*="katex"]')) {
+    document.head.appendChild(link);
+  }
+}
 
 interface MathRendererProps {
   content: string;

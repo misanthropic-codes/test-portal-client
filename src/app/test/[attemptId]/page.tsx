@@ -6,6 +6,7 @@ import { mockTestService } from '@/services/mock/mockData';
 import { TestAttempt, Question, QuestionStatus, Answer } from '@/types';
 import { Clock, ChevronLeft, ChevronRight, Flag, CheckCircle } from 'lucide-react';
 import { useTimer } from '@/hooks/useTimer';
+import { MathRenderer } from '@/components/MathRenderer';
 
 export default function TestPage() {
   const params = useParams();
@@ -36,24 +37,38 @@ export default function TestPage() {
       try {
         const attemptId = params.attemptId as string;
         
-        // Try to get attempt from localStorage (mock storage)
-        const storedAttempt = localStorage.getItem(`attempt_${attemptId}`);
-        if (storedAttempt) {
-          const parsedAttempt = JSON.parse(storedAttempt);
-          setAttempt(parsedAttempt);
-          
-          // Initialize question statuses
-          const statusMap = new Map<string, QuestionStatus>();
-          parsedAttempt.sections.forEach((section: any) => {
-            section.questions.forEach((q: any) => {
-              statusMap.set(q.id, QuestionStatus.NOT_VISITED);
-            });
-          });
-          setQuestionStatuses(statusMap);
+        // For demo: attemptId format is "attempt_timestamp"
+        // Extract testId from localStorage or regenerate
+        const storedData = typeof window !== 'undefined' ? localStorage.getItem(`attempt_${attemptId}`) : null;
+        
+        let attemptData: TestAttempt;
+        
+        if (storedData) {
+          attemptData = JSON.parse(storedData);
         } else {
-          // Attempt not found - redirect back
-          router.push('/tests');
+          // Fallback: Create new attempt from first available test
+          const tests = await mockTestService.getAllTests({});
+          if (tests.tests.length === 0) {
+            router.push('/tests');
+            return;
+          }
+          
+          attemptData = await mockTestService.startTest(tests.tests[0].id);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`attempt_${attemptData.attemptId}`, JSON.stringify(attemptData));
+          }
         }
+        
+        setAttempt(attemptData);
+        
+        // Initialize question statuses
+        const statusMap = new Map<string, QuestionStatus>();
+        attemptData.sections.forEach((section: any) => {
+          section.questions.forEach((q: any) => {
+            statusMap.set(q.id, QuestionStatus.NOT_VISITED);
+          });
+        });
+        setQuestionStatuses(statusMap);
       } catch (error) {
         console.error('Error loading attempt:', error);
         router.push('/tests');
@@ -70,6 +85,7 @@ export default function TestPage() {
   
   // Calculate remaining time - needs to update dynamically
   const [timeLeft, setTimeLeft] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
   
   useEffect(() => {
     if (!attempt) return;
@@ -78,6 +94,7 @@ export default function TestPage() {
     const calculate = () => {
       const remaining = Math.max(0, Math.floor((new Date(attempt.endTime).getTime() - Date.now()) / 1000));
       setTimeLeft(remaining);
+      setHasStarted(true); // Mark that timer has started
     };
     
     calculate();
@@ -86,14 +103,14 @@ export default function TestPage() {
     return () => clearInterval(interval);
   }, [attempt]);
   
-  // Auto-submit when time runs out
+  // Auto-submit when time runs out (but NOT on initial load)
   useEffect(() => {
-    if (timeLeft === 0 && attempt) {
+    if (timeLeft === 0 && attempt && hasStarted) {
       // Submit test logic
       setShowSubmitConfirmation(false);
       router.push(`/results/${attempt?.attemptId}`);
     }
-  }, [timeLeft, attempt, router]);
+  }, [timeLeft, attempt, router, hasStarted]);
 
   const handleAnswer = (answer: Answer) => {
     if (!currentQuestion) return;
@@ -273,13 +290,9 @@ export default function TestPage() {
             {/* Question Text */}
             <div className={`text-base leading-relaxed mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
               {currentQuestion?.questionText ? (
-                <div 
+                <MathRenderer 
+                  content={currentQuestion.questionText}
                   className="whitespace-pre-wrap"
-                  dangerouslySetInnerHTML={{ 
-                    __html: currentQuestion.questionText
-                      .replace(/\$\$([^$]+)\$\$/g, '<span class="math-display bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded font-mono text-sm">$1</span>')
-                      .replace(/\$([^$]+)\$/g, '<span class="math-inline bg-blue-50 dark:bg-blue-900/20 px-1 rounded font-mono text-sm">$1</span>')
-                  }} 
                 />
               ) : (
                 <p className="text-gray-500 italic">No question text available</p>
