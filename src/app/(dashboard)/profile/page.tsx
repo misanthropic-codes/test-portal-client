@@ -18,12 +18,15 @@ import {
   FileText,
   BarChart3,
   LogOut,
-  CheckCircle2
+  CheckCircle2,
+  KeyRound
 } from 'lucide-react';
 import { useUserStore } from '@/stores/useUserStore';
 import EditProfileModal from '@/components/EditProfileModal';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 import type { User as UserType } from '@/types';
 import { formatExamType } from '@/utils/formatters';
+import userService from '@/services/user.service';
 
 type RefreshMessage = {
   type: 'success' | 'error';
@@ -39,6 +42,7 @@ export default function ProfilePage() {
   const [refreshingProfile, setRefreshingProfile] = useState<boolean>(false);
   const [refreshMessage, setRefreshMessage] = useState<RefreshMessage | null>(null);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
 
   /** Theme sync */
   useEffect(() => {
@@ -84,6 +88,20 @@ export default function ProfilePage() {
       setTimeout(() => setRefreshMessage(null), 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Profile update failed';
+      setRefreshMessage({ type: 'error', text: message });
+      setTimeout(() => setRefreshMessage(null), 5000);
+      throw err;
+    }
+  };
+
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      setRefreshMessage(null);
+      await userService.changePassword(currentPassword, newPassword);
+      setRefreshMessage({ type: 'success', text: 'Password changed successfully' });
+      setTimeout(() => setRefreshMessage(null), 3000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to change password';
       setRefreshMessage({ type: 'error', text: message });
       setTimeout(() => setRefreshMessage(null), 5000);
       throw err;
@@ -356,6 +374,33 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Security Section */}
+        <div 
+          className={`p-6 sm:p-8 rounded-2xl border backdrop-blur-sm ${
+            darkMode 
+              ? 'bg-[#071219]/50 border-white/10' 
+              : 'bg-white border-gray-200 shadow-lg'
+          }`}
+        >
+          <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            Security
+          </h3>
+          <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Keep your account secure by regularly updating your password
+          </p>
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200 active:scale-95 ${
+              darkMode
+                ? 'bg-[#2596be]/20 text-[#60DFFF] hover:bg-[#2596be]/30 border border-[#2596be]/30'
+                : 'bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20 border border-[#2596be]/20'
+            }`}
+          >
+            <KeyRound className="h-5 w-5" />
+            Change Password
+          </button>
+        </div>
       </main>
 
       <EditProfileModal
@@ -363,6 +408,13 @@ export default function ProfilePage() {
         onClose={() => setShowEditModal(false)}
         onSave={handleUpdateProfile}
         user={profile}
+        darkMode={darkMode}
+      />
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={handleChangePassword}
         darkMode={darkMode}
       />
     </div>

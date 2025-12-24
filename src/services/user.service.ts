@@ -102,6 +102,28 @@ export const userService = {
       throw new Error(handleApiError(error));
     }
   },
+
+  /**
+   * Change user password
+   * POST /users/change-password
+   */
+  changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+      }>('/users/change-password', {
+        currentPassword,
+        newPassword,
+      });
+      
+      console.log('✅ Password changed successfully:', response.data.message);
+      
+      return response.data;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  },
 };
 
 export default userService;
