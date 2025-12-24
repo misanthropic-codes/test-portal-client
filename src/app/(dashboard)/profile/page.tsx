@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, User, Mail, Phone, Calendar, Award, Edit2 } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Calendar, Award, Edit2, RefreshCw } from 'lucide-react';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -21,6 +23,22 @@ export default function ProfilePage() {
     setDarkMode(document.documentElement.classList.contains("dark"));
     return () => observer.disconnect();
   }, []);
+
+  const handleRefreshToken = async () => {
+    setRefreshing(true);
+    setRefreshMessage(null);
+    
+    try {
+      await refreshSession();
+      setRefreshMessage({ type: 'success', text: 'Token refreshed successfully!' });
+      setTimeout(() => setRefreshMessage(null), 3000);
+    } catch (error: any) {
+      setRefreshMessage({ type: 'error', text: error?.message || 'Failed to refresh token' });
+      setTimeout(() => setRefreshMessage(null), 5000);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (!user) {
     return null;
@@ -66,6 +84,17 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Refresh Message */}
+        {refreshMessage && (
+          <div className={`mb-4 p-4 rounded-lg border ${
+            refreshMessage.type === 'success'
+              ? darkMode ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-green-50 border-green-200 text-green-700'
+              : darkMode ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
+            <p className="text-sm font-medium">{refreshMessage.text}</p>
+          </div>
+        )}
+
         {/* Profile Card */}
         <div className={`mb-8 p-8 rounded-2xl border backdrop-blur-2xl ${
           darkMode ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'
@@ -84,12 +113,27 @@ export default function ProfilePage() {
                 Student
               </p>
             </div>
-            <button
-              className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium flex items-center gap-2"
-            >
-              <Edit2 className="h-4 w-4" />
-              Edit Profile
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleRefreshToken}
+                disabled={refreshing}
+                className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+                  darkMode
+                    ? 'bg-white/10 hover:bg-white/20 text-white disabled:opacity-50'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900 disabled:opacity-50'
+                }`}
+                title="Refresh authentication token"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh Token'}
+              </button>
+              <button
+                className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium flex items-center gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                Edit Profile
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
