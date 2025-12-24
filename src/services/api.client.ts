@@ -3,7 +3,7 @@ import { tokenManager } from '@/utils/tokenManager';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://nhgj9d2g-8080.inc1.devtunnels.ms/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://aspiring-engineers-api-dbbcfdascdezgvcx.centralindia-01.azurewebsites.net/api/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
