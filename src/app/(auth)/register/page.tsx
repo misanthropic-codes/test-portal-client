@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { isValidEmail, isValidPassword } from '@/utils/validators';
 import { ExamType } from '@/types';
+import OTPModal from '@/components/OTPModal';
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +24,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [showOTPModal, setShowOTPModal] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -55,6 +59,16 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!formData.phone || formData.phone.length < 10) {
+      setError('Please enter a valid phone number');
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      setError('Please enter your date of birth');
+      return;
+    }
+
     if (examTargets.length === 0) {
       setError('Please select at least one exam target');
       return;
@@ -62,15 +76,34 @@ export default function RegisterPage() {
 
     try {
       setLoading(true);
+      // Exclude confirmPassword from the payload
+      const { confirmPassword, ...registrationData } = formData;
       await register({
-        ...formData,
+        ...registrationData,
         examTargets,
       });
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+      // Registration successful - show OTP modal
+      setShowOTPModal(true);
+    } catch (err: any) {
+      // Show the actual error message from the API
+      const errorMessage = err?.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOTPVerify = (otp: string) => {
+    console.log('OTP verified:', otp);
+    // Close modal and redirect to dashboard
+    setShowOTPModal(false);
+    router.push('/dashboard');
+  };
+
+  const handleOTPClose = () => {
+    // Allow user to close modal if needed
+    setShowOTPModal(false);
   };
 
   const toggleExam = (exam: ExamType) => {
@@ -181,6 +214,60 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                 />
               </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                  className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                    darkMode
+                      ? 'bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                  }`}
+                  placeholder="+919876543210"
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Date of Birth *
+                </label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  required
+                  className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                    darkMode
+                      ? 'bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Target Year *
+              </label>
+              <input
+                type="number"
+                value={formData.targetYear}
+                onChange={(e) => setFormData({ ...formData, targetYear: parseInt(e.target.value) })}
+                required
+                min={new Date().getFullYear()}
+                max={new Date().getFullYear() + 5}
+                className={`w-full px-4 py-3 rounded-lg border transition-colors ${
+                  darkMode
+                    ? 'bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]'
+                }`}
+              />
             </div>
 
             <div>
@@ -231,6 +318,15 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* OTP Verification Modal */}
+      <OTPModal
+        isOpen={showOTPModal}
+        onClose={handleOTPClose}
+        onVerify={handleOTPVerify}
+        email={formData.email}
+        darkMode={darkMode}
+      />
     </div>
   );
 }

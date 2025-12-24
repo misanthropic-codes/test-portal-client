@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthResponse, LoginCredentials, RegisterData } from '@/types';
 import { storage, STORAGE_KEYS } from '@/utils/storage';
-import { mockAuthService } from '@/services/mock/mockData';
+import authService from '@/services/auth.service';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      const response: AuthResponse = await mockAuthService.login(credentials);
+      const response: AuthResponse = await authService.login(credentials);
       
       storage.set(STORAGE_KEYS.AUTH_TOKEN, response.token);
       storage.set(STORAGE_KEYS.REFRESH_TOKEN, response.refreshToken);
@@ -51,14 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterData) => {
     try {
-      const response: AuthResponse = await mockAuthService.register(data);
+      const response: AuthResponse = await authService.register(data);
       
       storage.set(STORAGE_KEYS.AUTH_TOKEN, response.token);
       storage.set(STORAGE_KEYS.REFRESH_TOKEN, response.refreshToken);
       storage.set(STORAGE_KEYS.USER, response.user);
       
       setUser(response.user);
-      router.push('/dashboard');
+      // Don't redirect here - let the registration page handle OTP verification first
     } catch (error) {
       throw error;
     }

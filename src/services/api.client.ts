@@ -3,14 +3,14 @@ import { storage, STORAGE_KEYS } from '@/utils/storage';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://nhgj9d2g-8080.inc1.devtunnels.ms/api/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token and log requests
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = storage.get<string>(STORAGE_KEYS.AUTH_TOKEN);
@@ -19,16 +19,35 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Log API request
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      headers: config.headers,
+      data: config.data,
+    });
+    
     return config;
   },
   (error) => {
+    console.error('❌ API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor - handle common errors
+// Response interceptor - handle common errors and log responses
 apiClient.interceptors.response.use(
   (response) => {
+    // Log API response
+    console.log('✅ API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.config.url,
+      data: response.data,
+    });
+    
     return response;
   },
   async (error: AxiosError) => {
@@ -44,7 +63,7 @@ apiClient.interceptors.response.use(
         if (refreshToken) {
           // Try to refresh token
           const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/v1'}/auth/refresh`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'https://aspiring-engineers-api-dbbcfdascdezgvcx.centralindia-01.azurewebsites.net/api/v1'}/auth/refresh`,
             { refreshToken }
           );
 
@@ -71,6 +90,14 @@ apiClient.interceptors.response.use(
     }
 
     // Handle other errors
+    console.error('❌ API Response Error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      data: error.response?.data,
+      message: error.message,
+    });
+    
     return Promise.reject(error);
   }
 );
