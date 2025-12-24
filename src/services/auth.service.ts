@@ -117,12 +117,32 @@ export const authService = {
 
   /**
    * Get current user profile
-   * GET /auth/me
+   * GET /auth/profile
    */
   getCurrentUser: async (): Promise<User> => {
     try {
-      const response = await apiClient.get<{ success: boolean; user: User }>('/auth/me');
-      return response.data.user;
+      const response = await apiClient.get<{ _id: string; identifier: string; roles: string[] }>('/auth/profile');
+      
+      // API returns minimal data (_id, identifier, roles)
+      // Get full user data from localStorage if available
+      const savedUser = storage.get<User>(STORAGE_KEYS.USER);
+      
+      // Merge API data with saved user data
+      const user: User = {
+        ...savedUser,
+        id: response.data._id,
+        email: response.data.identifier,
+        name: savedUser?.name || '',
+        phone: savedUser?.phone || '',
+        dateOfBirth: savedUser?.dateOfBirth || '',
+        examTargets: savedUser?.examTargets || [],
+        targetYear: savedUser?.targetYear || new Date().getFullYear(),
+        createdAt: savedUser?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      console.log('✅ Profile fetched successfully');
+      return user;
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -153,12 +173,14 @@ export const authService = {
    * Logout user
    * POST /auth/logout
    */
-  logout: async (refreshToken: string): Promise<void> => {
+  logout: async (): Promise<void> => {
     try {
-      await apiClient.post('/auth/logout', { refreshToken });
+      // API uses Authorization header (added by interceptor), no body needed
+      const response = await apiClient.post<{ success: boolean; message: string }>('/auth/logout', {});
+      console.log('✅ Logout successful:', response.data.message);
     } catch (error) {
-      // Ignore logout errors, just clear local storage
-      console.error('Logout error:', error);
+      // Ignore logout errors, still clear local storage
+      console.error('⚠️ Logout API error (will still clear local storage):', error);
     }
   },
 

@@ -7,10 +7,11 @@ import { ArrowLeft, User, Mail, Phone, Calendar, Award, Edit2, RefreshCw } from 
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, refreshSession } = useAuth();
+  const { user, refreshSession, refreshProfile } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [refreshingProfile, setRefreshingProfile] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -37,6 +38,22 @@ export default function ProfilePage() {
       setTimeout(() => setRefreshMessage(null), 5000);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleRefreshProfile = async () => {
+    setRefreshingProfile(true);
+    setRefreshMessage(null);
+    
+    try {
+      await refreshProfile();
+      setRefreshMessage({ type: 'success', text: 'Profile refreshed successfully!' });
+      setTimeout(() => setRefreshMessage(null), 3000);
+    } catch (error: any) {
+      setRefreshMessage({ type: 'error', text: error?.message || 'Failed to refresh profile' });
+      setTimeout(() => setRefreshMessage(null), 5000);
+    } finally {
+      setRefreshingProfile(false);
     }
   };
 
@@ -113,7 +130,20 @@ export default function ProfilePage() {
                 Student
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={handleRefreshProfile}
+                disabled={refreshingProfile}
+                className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+                  darkMode
+                    ? 'bg-white/10 hover:bg-white/20 text-white disabled:opacity-50'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900 disabled:opacity-50'
+                }`}
+                title="Refresh profile data from server"
+              >
+                <User className={`h-4 w-4 ${refreshingProfile ? 'animate-pulse' : ''}`} />
+                {refreshingProfile ? 'Refreshing...' : 'Refresh Profile'}
+              </button>
               <button
                 onClick={handleRefreshToken}
                 disabled={refreshing}

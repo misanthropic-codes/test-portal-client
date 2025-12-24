@@ -7,14 +7,17 @@ import { DashboardStats, Test } from '@/types';
 import Link from 'next/link';
 import { formatExamType, formatMinutes } from '@/utils/formatters';
 import ContentCard from '@/components/ui/ContentCard';
-import { Clock, FileText, TrendingUp, Zap, BookOpen, BarChart3, User, LogOut } from 'lucide-react';
+import { Clock, FileText, TrendingUp, Zap, BookOpen, BarChart3, User, LogOut, RefreshCw } from 'lucide-react';
+import { useUserStore } from '@/stores/useUserStore';
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { profile, loading: profileLoading, fetchProfile } = useUserStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -33,6 +36,10 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Fetch user profile from API with caching
+        await fetchProfile();
+        
+        // Load dashboard stats and tests (still using mock for now)
         const [statsData, testsData] = await Promise.all([
           mockDashboardService.getStats(),
           mockTestService.getAllTests(),
@@ -47,9 +54,20 @@ export default function DashboardPage() {
     };
 
     loadData();
-  }, []);
+  }, [fetchProfile]);
 
-  if (loading) {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchProfile(true); // Force refresh
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2596be]"></div>
@@ -118,42 +136,56 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Welcome Section */}
         <div className="mb-8 sm:mb-12">
-          <h1 className={`text-3xl sm:text-4xl font-bold mb-2 sm:mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
-            Welcome back, {user?.name}!
-          </h1>
-          <p className={`text-base sm:text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Track your progress and continue preparing for your exams
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className={`text-3xl sm:text-4xl font-bold mb-2 sm:mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                Welcome back, {profile?.name}!
+              </h1>
+              <p className={`text-base sm:text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Track your progress and continue preparing for your exams
+              </p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`p-2 rounded-lg transition-colors ${
+                darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              } disabled:opacity-50`}
+              title="Refresh profile data"
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
           <ContentCard
-            icon={Clock}
-            title="Today's Study Time"
-            description={`${stats?.todayStudyTime || 0} minutes of focused practice`}
-            metadata={[{ label: "Status", value: "Active" }]}
-          />
-
-          <ContentCard
             icon={FileText}
-            title="Tests This Week"
-            description={`${stats?.testsThisWeek || 0} tests completed`}
-            metadata={[{ label: "Progress", value: "+2 from last week" }]}
+            title="Tests Attempted"
+            description={`${profile?.stats?.testsAttempted || 0} tests completed`}
+            metadata={[{ label: "Status", value: "Active" }]}
           />
 
           <ContentCard
             icon={TrendingUp}
             title="Average Score"
-            description={`${stats?.averageScoreThisWeek || 0} out of 300 marks`}
-            metadata={[{ label: "Improvement", value: "↑ 12%" }]}
+            description={`${profile?.stats?.averageScore?.toFixed(1) || 0}%`}
+            metadata={[{ label: "Performance", value: profile?.stats?.averageScore && profile.stats.averageScore >= 75 ? "Excellent" : "Good" }]}
           />
 
           <ContentCard
-            icon={Zap}
-            title="Week Study Time"
-            description={formatMinutes(stats?.weekStudyTime || 0)}
-            metadata={[{ label: "Goal", value: "20 hours" }]}
+            icon={BarChart3}
+            title="Best Rank"
+            description={`Rank #${profile?.stats?.bestRank || '-'}`}
+            metadata={[{ label: "Achievement", value: "Top Performer" }]}
+          />
+
+          <ContentCard
+            icon={Clock}
+            title="Study Hours"
+            description={`${profile?.stats?.totalStudyHours || 0} hours total`}
+            metadata={[{ label: "This Month", value: `${Math.floor((profile?.stats?.totalStudyHours || 0) / 4)} hrs` }]}
           />
         </div>
 

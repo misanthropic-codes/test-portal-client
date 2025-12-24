@@ -11,8 +11,9 @@ interface AuthContextType {
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -84,12 +85,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-    storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
-    storage.remove(STORAGE_KEYS.USER);
-    setUser(null);
-    router.push('/login');
+  const refreshProfile = async () => {
+    try {
+      const updatedUser = await authService.getCurrentUser();
+      
+      // Update state and localStorage
+      storage.set(STORAGE_KEYS.USER, updatedUser);
+      setUser(updatedUser);
+      
+      console.log('✅ Profile refreshed successfully');
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      // Call logout API to invalidate token on server
+      await authService.logout();
+    } catch (error) {
+      // Continue with logout even if API fails
+      console.error('Logout error:', error);
+    } finally {
+      // Always clear local storage and redirect
+      storage.remove(STORAGE_KEYS.AUTH_TOKEN);
+      storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
+      storage.remove(STORAGE_KEYS.USER);
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   return (
@@ -101,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshSession,
+        refreshProfile,
         isAuthenticated: !!user,
       }}
     >
