@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -64,6 +65,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshSession = async () => {
+    try {
+      const refreshToken = storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN);
+      
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await authService.refreshToken(refreshToken);
+      
+      // Token is already stored in authService.refreshToken method
+      console.log('✅ Session refreshed successfully');
+    } catch (error) {
+      // If refresh fails, logout user
+      logout();
+      throw error;
+    }
+  };
+
   const logout = () => {
     storage.remove(STORAGE_KEYS.AUTH_TOKEN);
     storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
@@ -80,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshSession,
         isAuthenticated: !!user,
       }}
     >

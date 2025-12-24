@@ -62,17 +62,20 @@ apiClient.interceptors.response.use(
         
         if (refreshToken) {
           // Try to refresh token
+          console.log('🔄 Attempting to refresh token...');
           const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL || 'https://aspiring-engineers-api-dbbcfdascdezgvcx.centralindia-01.azurewebsites.net/api/v1'}/auth/refresh`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'https://nhgj9d2g-8080.inc1.devtunnels.ms/api/v1'}/auth/refresh`,
             { refreshToken }
           );
 
-          const { token } = response.data.data;
-          storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
+          // API returns { accessToken: "..." }
+          const { accessToken } = response.data;
+          storage.set(STORAGE_KEYS.AUTH_TOKEN, accessToken);
+          console.log('✅ Token refreshed successfully');
 
           // Retry original request with new token
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }
           return apiClient(originalRequest);
         }

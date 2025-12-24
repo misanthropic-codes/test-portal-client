@@ -1,5 +1,6 @@
 import apiClient, { handleApiError } from './api.client';
 import { LoginCredentials, RegisterData, AuthResponse, User } from '@/types';
+import { storage, STORAGE_KEYS } from '@/utils/storage';
 
 /**
  * Authentication Service
@@ -131,12 +132,18 @@ export const authService = {
    * Refresh access token
    * POST /auth/refresh
    */
-  refreshToken: async (refreshToken: string): Promise<{ token: string }> => {
+  refreshToken: async (refreshToken: string): Promise<{ accessToken: string }> => {
     try {
-      const response = await apiClient.post<{ success: boolean; accessToken: string }>('/auth/refresh', {
+      const response = await apiClient.post<{ accessToken: string }>('/auth/refresh', {
         refreshToken,
       });
-      return { token: response.data.accessToken };
+      
+      console.log('✅ Token refresh successful');
+      
+      // Store the new token
+      storage.set(STORAGE_KEYS.AUTH_TOKEN, response.data.accessToken);
+      
+      return { accessToken: response.data.accessToken };
     } catch (error) {
       throw new Error(handleApiError(error));
     }
