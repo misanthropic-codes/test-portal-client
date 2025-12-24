@@ -33,8 +33,8 @@ interface ApiLoginResponse {
   data: {
     user: {
       id: string;
-      email: string;
       name: string;
+      email: string;
       phone: string;
       examTargets: string[];
       targetYear: number;
@@ -97,10 +97,10 @@ export const authService = {
           id: response.data.data.user.id,
           name: response.data.data.user.name,
           email: response.data.data.user.email,
-          phone: response.data.data.user.phone || '',
-          dateOfBirth: '',
-          examTargets: response.data.data.user.examTargets as any || [],
-          targetYear: response.data.data.user.targetYear || new Date().getFullYear(),
+          phone: response.data.data.user.phone,
+          dateOfBirth: '', // Not provided by login API
+          examTargets: response.data.data.user.examTargets as any,
+          targetYear: response.data.data.user.targetYear,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },

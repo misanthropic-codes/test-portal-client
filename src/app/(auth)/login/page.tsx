@@ -44,8 +44,12 @@ export default function LoginPage() {
     try {
       setLoading(true);
       await login({ email, password });
-    } catch (err) {
-      setError('Login failed. Please check your credentials.');
+      // Login successful - AuthContext will handle redirect
+    } catch (err: any) {
+      // Show the actual error message from the API
+      const errorMessage = err?.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
