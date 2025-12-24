@@ -86,12 +86,21 @@ export const authService = {
    * Login user
    * POST /auth/login
    */
-  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+  login:async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
       const response = await apiClient.post<ApiLoginResponse>('/auth/login', credentials);
       
       // Success message from API
       console.log('✅ Login successful:', response.data.message);
+      
+      // CRITICAL: API returns 'token' field but we need to map it correctly
+      // Check if API response has the token field
+      const apiToken = response.data.data.token;
+      
+      if (!apiToken) {
+        console.error('⚠️ No token in API response:', response.data);
+        throw new Error('No authentication token received from server');
+      }
       
       // Map the API response to the AuthResponse format expected by the app
       const authResponse: AuthResponse = {
@@ -106,10 +115,11 @@ export const authService = {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
-        token: response.data.data.token,
+        token: apiToken,
         refreshToken: response.data.data.refreshToken,
       };
 
+      console.log('🔐 Mapped auth response with token:', apiToken ? 'present' : 'MISSING');
       return authResponse;
     } catch (error) {
       throw new Error(handleApiError(error));
