@@ -60,6 +60,48 @@ export const userService = {
       throw new Error(handleApiError(error));
     }
   },
+
+  /**
+   * Update current user's profile information
+   * PUT /users/profile
+   */
+  updateUserProfile: async (data: Partial<User>): Promise<User> => {
+    try {
+      const response = await apiClient.put<{
+        success: boolean;
+        data: { user: UserProfileResponse['data'] };
+        message: string;
+      }>('/users/profile', {
+        name: data.name,
+        phone: data.phone,
+        dateOfBirth: data.dateOfBirth,
+        examTargets: data.examTargets,
+        targetYear: data.targetYear,
+        profilePicture: data.profilePicture,
+      });
+      
+      console.log('✅ Profile updated successfully:', response.data.message);
+      
+      // Map API response to User type
+      const user: User = {
+        id: response.data.data.user.id,
+        name: response.data.data.user.name,
+        email: response.data.data.user.email,
+        phone: response.data.data.user.phone,
+        profilePicture: response.data.data.user.profilePicture,
+        dateOfBirth: response.data.data.user.dateOfBirth,
+        examTargets: response.data.data.user.examTargets as any,
+        targetYear: response.data.data.user.targetYear,
+        stats: response.data.data.user.stats,
+        createdAt: response.data.data.user.createdAt,
+        updatedAt: response.data.data.user.updatedAt,
+      };
+      
+      return user;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  },
 };
 
 export default userService;

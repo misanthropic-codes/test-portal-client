@@ -57,9 +57,9 @@ export const storage = {
 };
 
 // Specific storage keys
+// Note: AUTH_TOKEN and REFRESH_TOKEN are stored in memory via tokenManager
+// Only non-sensitive data is stored in localStorage
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'auth_token',
-  REFRESH_TOKEN: 'refresh_token',
   USER: 'user',
   THEME: 'theme',
   TEST_ATTEMPT: 'test_attempt_',

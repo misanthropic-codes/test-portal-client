@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { storage, STORAGE_KEYS } from '@/utils/storage';
+import { tokenManager } from '@/utils/tokenManager';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -13,7 +13,9 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - add auth token and log requests
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = storage.get<string>(STORAGE_KEYS.AUTH_TOKEN);
+    // CRITICAL: Always fetch the most recent token from storage
+    // This ensures we use the refreshed token after token refresh operations
+    const token = tokenManager.getAuthToken();
     
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -27,6 +29,7 @@ apiClient.interceptors.request.use(
       fullURL: `${config.baseURL}${config.url}`,
       headers: config.headers,
       data: config.data,
+      token: token ? `${token.substring(0, 20)}...` : 'none', // Log token prefix for debugging
     });
     
     return config;
@@ -58,32 +61,41 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN);
+        const refreshToken = tokenManager.getRefreshToken();
         
         if (refreshToken) {
           // Try to refresh token
-          console.log('🔄 Attempting to refresh token...');
-          const response = await axios.post(
+          console.log('🔄 401 detected - Attempting to refresh token...');
+          const response = await axios.post<{ accessToken: string; refreshToken?: string }>(
             `${process.env.NEXT_PUBLIC_API_URL || 'https://nhgj9d2g-8080.inc1.devtunnels.ms/api/v1'}/auth/refresh`,
             { refreshToken }
           );
 
-          // API returns { accessToken: "..." }
-          const { accessToken } = response.data;
-          storage.set(STORAGE_KEYS.AUTH_TOKEN, accessToken);
-          console.log('✅ Token refreshed successfully');
+          // CRITICAL: Immediately store the new tokens
+          const { accessToken, refreshToken: newRefreshToken } = response.data;
+          tokenManager.setAuthToken(accessToken);
+          console.log('✅ New access token stored and will be used for retry');
+
+          // If API returns a new refresh token (token rotation), store it
+          if (newRefreshToken) {
+            tokenManager.setRefreshToken(newRefreshToken);
+            console.log('✅ New refresh token stored (token rotation)');
+          }
 
           // Retry original request with new token
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }
+          
+          console.log('🔄 Retrying original request with new token...');
           return apiClient(originalRequest);
+        } else {
+          console.warn('⚠️ No refresh token available, cannot refresh');
         }
       } catch (refreshError) {
+        console.error('❌ Token refresh failed in interceptor:', refreshError);
         // Refresh failed, logout user
-        storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-        storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
-        storage.remove(STORAGE_KEYS.USER);
+        tokenManager.clearTokens();
         
         if (typeof window !== 'undefined') {
           window.location.href = '/login';

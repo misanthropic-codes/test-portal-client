@@ -1,6 +1,7 @@
 import apiClient, { handleApiError } from './api.client';
 import { LoginCredentials, RegisterData, AuthResponse, User } from '@/types';
 import { storage, STORAGE_KEYS } from '@/utils/storage';
+import { tokenManager } from '@/utils/tokenManager';
 
 /**
  * Authentication Service
@@ -151,20 +152,40 @@ export const authService = {
   /**
    * Refresh access token
    * POST /auth/refresh
+   * 
+   * API may return:
+   * - accessToken: new access token (always)
+   * - refreshToken: new refresh token (optional, if API rotates refresh tokens)
    */
-  refreshToken: async (refreshToken: string): Promise<{ accessToken: string }> => {
+  refreshToken: async (refreshToken: string): Promise<{ accessToken: string; refreshToken?: string }> => {
     try {
-      const response = await apiClient.post<{ accessToken: string }>('/auth/refresh', {
+      console.log('🔄 Calling token refresh API...');
+      
+      const response = await apiClient.post<{ accessToken: string; refreshToken?: string }>('/auth/refresh', {
         refreshToken,
       });
       
-      console.log('✅ Token refresh successful');
+      console.log('✅ Token refresh API successful');
       
-      // Store the new token
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, response.data.accessToken);
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
       
-      return { accessToken: response.data.accessToken };
+      // CRITICAL: Immediately store the new access token
+      // This ensures all subsequent requests use the new token
+      tokenManager.setAuthToken(accessToken);
+      console.log('🔐 New access token stored in memory');
+      
+      // If API returns a new refresh token (token rotation), store it
+      if (newRefreshToken) {
+        tokenManager.setRefreshToken(newRefreshToken);
+        console.log('🔐 New refresh token stored in memory (token rotation)');
+      }
+      
+      return { 
+        accessToken, 
+        refreshToken: newRefreshToken 
+      };
     } catch (error) {
+      console.error('❌ Token refresh failed:', error);
       throw new Error(handleApiError(error));
     }
   },

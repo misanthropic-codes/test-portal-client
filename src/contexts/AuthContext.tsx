@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthResponse, LoginCredentials, RegisterData } from '@/types';
 import { storage, STORAGE_KEYS } from '@/utils/storage';
+import { tokenManager } from '@/utils/tokenManager';
 import authService from '@/services/auth.service';
 import { useRouter } from 'next/navigation';
 
@@ -26,10 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check for existing session on mount
   useEffect(() => {
-    const token = storage.get<string>(STORAGE_KEYS.AUTH_TOKEN);
+    const hasTokens = tokenManager.hasTokens();
     const savedUser = storage.get<User>(STORAGE_KEYS.USER);
 
-    if (token && savedUser) {
+    if (hasTokens && savedUser) {
       setUser(savedUser);
     }
     
@@ -40,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response: AuthResponse = await authService.login(credentials);
       
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, response.token);
-      storage.set(STORAGE_KEYS.REFRESH_TOKEN, response.refreshToken);
+      tokenManager.setAuthToken(response.token);
+      tokenManager.setRefreshToken(response.refreshToken);
       storage.set(STORAGE_KEYS.USER, response.user);
       
       setUser(response.user);
@@ -55,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response: AuthResponse = await authService.register(data);
       
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, response.token);
-      storage.set(STORAGE_KEYS.REFRESH_TOKEN, response.refreshToken);
+      tokenManager.setAuthToken(response.token);
+      tokenManager.setRefreshToken(response.refreshToken);
       storage.set(STORAGE_KEYS.USER, response.user);
       
       setUser(response.user);
@@ -68,17 +69,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshSession = async () => {
     try {
-      const refreshToken = storage.get<string>(STORAGE_KEYS.REFRESH_TOKEN);
+      const refreshToken = tokenManager.getRefreshToken();
       
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
 
+      console.log('🔄 Refreshing session...');
       const response = await authService.refreshToken(refreshToken);
       
-      // Token is already stored in authService.refreshToken method
-      console.log('✅ Session refreshed successfully');
+      // If API returns a new refresh token (token rotation), it's already stored by authService
+      if (response.refreshToken) {
+        console.log('✅ Session refreshed with new refresh token');
+      } else {
+        console.log('✅ Session refreshed with same refresh token');
+      }
     } catch (error) {
+      console.error('❌ Session refresh failed:', error);
       // If refresh fails, logout user
       logout();
       throw error;
@@ -107,9 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Continue with logout even if API fails
       console.error('Logout error:', error);
     } finally {
-      // Always clear local storage and redirect
-      storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-      storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
+      // Always clear tokens and local storage, then redirect
+      tokenManager.clearTokens();
       storage.remove(STORAGE_KEYS.USER);
       setUser(null);
       router.push('/login');
