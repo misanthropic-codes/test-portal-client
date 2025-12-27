@@ -1,21 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { mockTestService } from '@/services/mock/mockData';
-import { Test, ExamType } from '@/types';
+import testsService, { MyTestsResponse, MyTest, TestCategory } from '@/services/tests.service';
 import Link from 'next/link';
-import { formatExamType, formatTestType } from '@/utils/formatters';
-import ContentCard from '@/components/ui/ContentCard';
-import { Search, User, LogOut, FileText } from 'lucide-react';
+import { Search, User, LogOut, FileText, Clock, Target, Award, TrendingUp, BookOpen, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TestsPage() {
   const { logout } = useAuth();
-  const [tests, setTests] = useState<Test[]>([]);
-  const [filteredTests, setFilteredTests] = useState<Test[]>([]);
+  const [testsData, setTestsData] = useState<MyTestsResponse | null>(null);
+  const [filteredTests, setFilteredTests] = useState<MyTest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedExam, setSelectedExam] = useState<ExamType | 'ALL'>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -35,11 +33,17 @@ export default function TestsPage() {
   useEffect(() => {
     const loadTests = async () => {
       try {
-        const data = await mockTestService.getAllTests();
-        setTests(data.tests);
-        setFilteredTests(data.tests);
-      } catch (error) {
-        console.error('Error loading tests:', error);
+        setLoading(true);
+        setError('');
+        const data = await testsService.getMyTests();
+        setTestsData(data);
+        
+        // Flatten all tests from categories
+        const allTests = data.categories.flatMap(cat => cat.tests);
+        setFilteredTests(allTests);
+      } catch (err: any) {
+        console.error('Error loading tests:', err);
+        setError('Failed to load tests. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -49,10 +53,15 @@ export default function TestsPage() {
   }, []);
 
   useEffect(() => {
-    let filtered = tests;
-
-    if (selectedExam !== 'ALL') {
-      filtered = filtered.filter((test) => test.examType === selectedExam);
+    if (!testsData) return;
+    
+    let filtered: MyTest[] = [];
+    
+    if (selectedCategory === 'ALL') {
+      filtered = testsData.categories.flatMap(cat => cat.tests);
+    } else {
+      const category = testsData.categories.find(c => c.category === selectedCategory);
+      filtered = category?.tests || [];
     }
 
     if (searchQuery) {
@@ -64,7 +73,7 @@ export default function TestsPage() {
     }
 
     setFilteredTests(filtered);
-  }, [searchQuery, selectedExam, tests]);
+  }, [searchQuery, selectedCategory, testsData]);
 
   if (loading) {
     return (
@@ -73,6 +82,25 @@ export default function TestsPage() {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0]"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = testsData?.stats;
+  const categories = testsData?.categories || [];
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
@@ -136,12 +164,65 @@ export default function TestsPage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className={`text-3xl sm:text-4xl font-bold mb-2 sm:mb-3 ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
-            All Tests
+            My Tests
           </h1>
           <p className={`text-base sm:text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Browse and start practicing with our comprehensive test series
+            All your purchased and assigned tests in one place
           </p>
         </div>
+
+        {/* Stats Cards */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-[#2596be]/20' : 'bg-[#2596be]/10'}`}>
+                  <BookOpen className="w-5 h-5 text-[#2596be]" />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.totalTests}</p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Total Tests</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-green-500/20' : 'bg-green-500/10'}`}>
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.completedTests}</p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Completed</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-yellow-500/20' : 'bg-yellow-500/10'}`}>
+                  <Target className="w-5 h-5 text-yellow-500" />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.notStarted}</p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Not Started</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-500/20' : 'bg-purple-500/10'}`}>
+                  <TrendingUp className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.overallAverage}%</p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Average Score</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className={`p-4 sm:p-6 rounded-2xl border backdrop-blur-2xl mb-6 sm:mb-8 ${
@@ -163,12 +244,12 @@ export default function TestsPage() {
               />
             </div>
 
-            {/* Exam Filter */}
+            {/* Category Filter */}
             <div className="flex gap-2 overflow-x-auto">
               <button
-                onClick={() => setSelectedExam('ALL')}
+                onClick={() => setSelectedCategory('ALL')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                  selectedExam === 'ALL'
+                  selectedCategory === 'ALL'
                     ? darkMode
                       ? 'bg-[#2596be]/20 text-[#60DFFF]'
                       : 'bg-[#2596be]/10 text-[#2596be]'
@@ -177,14 +258,14 @@ export default function TestsPage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                All
+                All ({testsData?.stats.totalTests || 0})
               </button>
-              {Object.values(ExamType).map((exam) => (
+              {categories.map((cat) => (
                 <button
-                  key={exam}
-                  onClick={() => setSelectedExam(exam)}
+                  key={cat.category}
+                  onClick={() => setSelectedCategory(cat.category)}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                    selectedExam === exam
+                    selectedCategory === cat.category
                       ? darkMode
                         ? 'bg-[#2596be]/20 text-[#60DFFF]'
                         : 'bg-[#2596be]/10 text-[#2596be]'
@@ -193,7 +274,7 @@ export default function TestsPage() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {formatExamType(exam)}
+                  {cat.category} ({cat.totalTests})
                 </button>
               ))}
             </div>
@@ -223,22 +304,102 @@ export default function TestsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredTests.map((test) => (
-              <ContentCard
-                key={test.id}
-                href={`/tests/${test.id}`}
-                title={test.title}
-                description={test.description}
-                badge={formatExamType(test.examType)}
-                metadata={[
-                  { label: "Duration", value: `${test.duration} min` },
-                  { label: "Questions", value: `${test.totalQuestions}` },
-                  { label: "Marks", value: `${test.totalMarks}` },
-                ]}
-              />
+              <TestCard key={test.testId} test={test} darkMode={darkMode} />
             ))}
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+// Test Card Component
+function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
+  const getProgressColor = (progress: string) => {
+    switch (progress) {
+      case 'completed': return 'text-green-500 bg-green-500/10';
+      case 'in-progress': return 'text-yellow-500 bg-yellow-500/10';
+      default: return 'text-gray-400 bg-gray-500/10';
+    }
+  };
+
+  const getProgressText = (progress: string) => {
+    switch (progress) {
+      case 'completed': return 'Completed';
+      case 'in-progress': return 'In Progress';
+      default: return 'Not Started';
+    }
+  };
+
+  return (
+    <Link
+      href={`/tests/${test.testId}`}
+      className={`block p-5 rounded-2xl border transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
+        darkMode 
+          ? 'bg-white/5 border-white/10 hover:border-[#2596be]/50' 
+          : 'bg-white border-gray-200 hover:border-[#2596be]'
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+          darkMode ? 'bg-[#2596be]/20 text-[#60DFFF]' : 'bg-[#2596be]/10 text-[#2596be]'
+        }`}>
+          {test.category}
+        </span>
+        <span className={`px-2 py-1 rounded-md text-xs font-medium ${getProgressColor(test.progress)}`}>
+          {getProgressText(test.progress)}
+        </span>
+      </div>
+
+      {/* Title & Description */}
+      <h3 className={`text-lg font-semibold mb-2 line-clamp-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        {test.title}
+      </h3>
+      <p className={`text-sm mb-4 line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        {test.description}
+      </p>
+
+      {/* Metadata */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className={`text-center p-2 rounded-lg ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <Clock className={`w-4 h-4 mx-auto mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{test.duration} min</p>
+        </div>
+        <div className={`text-center p-2 rounded-lg ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <Target className={`w-4 h-4 mx-auto mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{test.totalMarks} marks</p>
+        </div>
+        <div className={`text-center p-2 rounded-lg ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <Award className={`w-4 h-4 mx-auto mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            {test.attemptsCount > 0 ? `${test.attemptsCount} attempts` : 'No attempts'}
+          </p>
+        </div>
+      </div>
+
+      {/* Best Score (if attempted) */}
+      {test.hasAttempted && test.bestPercentage !== undefined && (
+        <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-500/10' : 'bg-green-50'}`}>
+          <div className="flex items-center justify-between">
+            <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Best Score</span>
+            <span className="text-green-500 font-bold">{test.bestPercentage.toFixed(1)}%</span>
+          </div>
+          {test.bestRank && (
+            <div className="flex items-center justify-between mt-1">
+              <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Best Rank</span>
+              <span className="text-[#2596be] font-bold">#{test.bestRank}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Package Name */}
+      {test.packageName && (
+        <p className={`mt-3 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          From: {test.packageName}
+        </p>
+      )}
+    </Link>
   );
 }
