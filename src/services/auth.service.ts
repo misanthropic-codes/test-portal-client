@@ -1,11 +1,11 @@
-import apiClient, { handleApiError } from './api.client';
-import { LoginCredentials, RegisterData, AuthResponse, User } from '@/types';
-import { storage, STORAGE_KEYS } from '@/utils/storage';
-import { tokenManager } from '@/utils/tokenManager';
+import apiClient, { handleApiError } from "./api.client";
+import { LoginCredentials, RegisterData, AuthResponse, User } from "@/types";
+import { storage, STORAGE_KEYS } from "@/utils/storage";
+import { tokenManager } from "@/utils/tokenManager";
 
 /**
  * Authentication Service
- * 
+ *
  * Handles all authentication-related API calls including:
  * - User registration
  * - User login
@@ -16,18 +16,18 @@ import { tokenManager } from '@/utils/tokenManager';
 interface ApiRegisterResponse {
   success: boolean;
   data: {
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      phone: string;
-      examTargets: string[];
-      targetYear: number;
-    };
-    token: string;
-    refreshToken: string;
+    email: string;
+    name: string;
   };
   message: string;
+}
+
+// Response after successful registration (user needs to verify email)
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  email: string;
+  name: string;
 }
 
 interface ApiLoginResponse {
@@ -51,32 +51,26 @@ export const authService = {
   /**
    * Register a new user account
    * POST /auth/register
+   * Note: After registration, user needs to verify email before they can log in.
+   * The API returns email and name but no tokens until email is verified.
    */
-  register: async (data: RegisterData): Promise<AuthResponse> => {
+  register: async (data: RegisterData): Promise<RegisterResponse> => {
     try {
-      const response = await apiClient.post<ApiRegisterResponse>('/auth/register', data);
-      
-      // Success message from API
-      console.log('✅ Registration successful:', response.data.message);
-      
-      // Map the API response to the AuthResponse format expected by the app
-      const authResponse: AuthResponse = {
-        user: {
-          id: response.data.data.user.id,
-          name: response.data.data.user.name,
-          email: response.data.data.user.email,
-          phone: response.data.data.user.phone,
-          dateOfBirth: data.dateOfBirth,
-          examTargets: data.examTargets,
-          targetYear: response.data.data.user.targetYear,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        token: response.data.data.token,
-        refreshToken: response.data.data.refreshToken,
-      };
+      const response = await apiClient.post<ApiRegisterResponse>(
+        "/auth/register",
+        data
+      );
 
-      return authResponse;
+      // Success message from API
+      console.log("✅ Registration successful:", response.data.message);
+
+      // Return the registration response (user needs to verify email next)
+      return {
+        success: response.data.success,
+        message: response.data.message,
+        email: response.data.data.email,
+        name: response.data.data.name,
+      };
     } catch (error) {
       throw new Error(handleApiError(error));
     }
@@ -86,22 +80,25 @@ export const authService = {
    * Login user
    * POST /auth/login
    */
-  login:async (credentials: LoginCredentials): Promise<AuthResponse> => {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
-      const response = await apiClient.post<ApiLoginResponse>('/auth/login', credentials);
-      
+      const response = await apiClient.post<ApiLoginResponse>(
+        "/auth/login",
+        credentials
+      );
+
       // Success message from API
-      console.log('✅ Login successful:', response.data.message);
-      
+      console.log("✅ Login successful:", response.data.message);
+
       // CRITICAL: API returns 'token' field but we need to map it correctly
       // Check if API response has the token field
       const apiToken = response.data.data.token;
-      
+
       if (!apiToken) {
-        console.error('⚠️ No token in API response:', response.data);
-        throw new Error('No authentication token received from server');
+        console.error("⚠️ No token in API response:", response.data);
+        throw new Error("No authentication token received from server");
       }
-      
+
       // Map the API response to the AuthResponse format expected by the app
       const authResponse: AuthResponse = {
         user: {
@@ -109,7 +106,7 @@ export const authService = {
           name: response.data.data.user.name,
           email: response.data.data.user.email,
           phone: response.data.data.user.phone,
-          dateOfBirth: '', // Not provided by login API
+          dateOfBirth: "", // Not provided by login API
           examTargets: response.data.data.user.examTargets as any,
           targetYear: response.data.data.user.targetYear,
           createdAt: new Date().toISOString(),
@@ -119,7 +116,10 @@ export const authService = {
         refreshToken: response.data.data.refreshToken,
       };
 
-      console.log('🔐 Mapped auth response with token:', apiToken ? 'present' : 'MISSING');
+      console.log(
+        "🔐 Mapped auth response with token:",
+        apiToken ? "present" : "MISSING"
+      );
       return authResponse;
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -132,27 +132,31 @@ export const authService = {
    */
   getCurrentUser: async (): Promise<User> => {
     try {
-      const response = await apiClient.get<{ _id: string; identifier: string; roles: string[] }>('/auth/profile');
-      
+      const response = await apiClient.get<{
+        _id: string;
+        identifier: string;
+        roles: string[];
+      }>("/auth/profile");
+
       // API returns minimal data (_id, identifier, roles)
       // Get full user data from localStorage if available
       const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-      
+
       // Merge API data with saved user data
       const user: User = {
         ...savedUser,
         id: response.data._id,
         email: response.data.identifier,
-        name: savedUser?.name || '',
-        phone: savedUser?.phone || '',
-        dateOfBirth: savedUser?.dateOfBirth || '',
+        name: savedUser?.name || "",
+        phone: savedUser?.phone || "",
+        dateOfBirth: savedUser?.dateOfBirth || "",
         examTargets: savedUser?.examTargets || [],
         targetYear: savedUser?.targetYear || new Date().getFullYear(),
         createdAt: savedUser?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
-      console.log('✅ Profile fetched successfully');
+
+      console.log("✅ Profile fetched successfully");
       return user;
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -162,40 +166,45 @@ export const authService = {
   /**
    * Refresh access token
    * POST /auth/refresh
-   * 
+   *
    * API may return:
    * - accessToken: new access token (always)
    * - refreshToken: new refresh token (optional, if API rotates refresh tokens)
    */
-  refreshToken: async (refreshToken: string): Promise<{ accessToken: string; refreshToken?: string }> => {
+  refreshToken: async (
+    refreshToken: string
+  ): Promise<{ accessToken: string; refreshToken?: string }> => {
     try {
-      console.log('🔄 Calling token refresh API...');
-      
-      const response = await apiClient.post<{ accessToken: string; refreshToken?: string }>('/auth/refresh', {
+      console.log("🔄 Calling token refresh API...");
+
+      const response = await apiClient.post<{
+        accessToken: string;
+        refreshToken?: string;
+      }>("/auth/refresh", {
         refreshToken,
       });
-      
-      console.log('✅ Token refresh API successful');
-      
+
+      console.log("✅ Token refresh API successful");
+
       const { accessToken, refreshToken: newRefreshToken } = response.data;
-      
+
       // CRITICAL: Immediately store the new access token
       // This ensures all subsequent requests use the new token
       tokenManager.setAuthToken(accessToken);
-      console.log('🔐 New access token stored in memory');
-      
+      console.log("🔐 New access token stored in memory");
+
       // If API returns a new refresh token (token rotation), store it
       if (newRefreshToken) {
         tokenManager.setRefreshToken(newRefreshToken);
-        console.log('🔐 New refresh token stored in memory (token rotation)');
+        console.log("🔐 New refresh token stored in memory (token rotation)");
       }
-      
-      return { 
-        accessToken, 
-        refreshToken: newRefreshToken 
+
+      return {
+        accessToken,
+        refreshToken: newRefreshToken,
       };
     } catch (error) {
-      console.error('❌ Token refresh failed:', error);
+      console.error("❌ Token refresh failed:", error);
       throw new Error(handleApiError(error));
     }
   },
@@ -207,11 +216,17 @@ export const authService = {
   logout: async (): Promise<void> => {
     try {
       // API uses Authorization header (added by interceptor), no body needed
-      const response = await apiClient.post<{ success: boolean; message: string }>('/auth/logout', {});
-      console.log('✅ Logout successful:', response.data.message);
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+      }>("/auth/logout", {});
+      console.log("✅ Logout successful:", response.data.message);
     } catch (error) {
       // Ignore logout errors, still clear local storage
-      console.error('⚠️ Logout API error (will still clear local storage):', error);
+      console.error(
+        "⚠️ Logout API error (will still clear local storage):",
+        error
+      );
     }
   },
 
@@ -221,7 +236,10 @@ export const authService = {
    */
   updateProfile: async (data: Partial<User>): Promise<User> => {
     try {
-      const response = await apiClient.patch<{ success: boolean; user: User }>('/auth/profile', data);
+      const response = await apiClient.patch<{ success: boolean; user: User }>(
+        "/auth/profile",
+        data
+      );
       return response.data.user;
     } catch (error) {
       throw new Error(handleApiError(error));
@@ -232,20 +250,21 @@ export const authService = {
    * Upload profile picture
    * POST /auth/profile/picture
    */
-  uploadProfilePicture: async (file: File): Promise<{ profilePicture: string }> => {
+  uploadProfilePicture: async (
+    file: File
+  ): Promise<{ profilePicture: string }> => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
-      const response = await apiClient.post<{ success: boolean; profilePicture: string }>(
-        '/auth/profile/picture',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const response = await apiClient.post<{
+        success: boolean;
+        profilePicture: string;
+      }>("/auth/profile/picture", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       return { profilePicture: response.data.profilePicture };
     } catch (error) {
