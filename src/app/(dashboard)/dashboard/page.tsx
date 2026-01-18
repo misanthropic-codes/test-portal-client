@@ -2,19 +2,21 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
-import { mockDashboardService, mockTestService } from '@/services/mock/mockData';
-import { DashboardStats, Test } from '@/types';
+import { mockDashboardService } from '@/services/mock/mockData';
+import { purchasesService, PurchasedPackage } from '@/services/purchases.service';
+import { DashboardStats } from '@/types';
 import Link from 'next/link';
-import { formatExamType, formatMinutes } from '@/utils/formatters';
 import ContentCard from '@/components/ui/ContentCard';
-import { Clock, FileText, TrendingUp, Zap, BookOpen, BarChart3, User, LogOut, RefreshCw } from 'lucide-react';
+import { Clock, FileText, TrendingUp, BookOpen, BarChart3, User, LogOut, RefreshCw, ShoppingBag } from 'lucide-react';
 import { useUserStore } from '@/stores/useUserStore';
 
 export default function DashboardPage() {
   const { logout } = useAuth();
   const { profile, loading: profileLoading, fetchProfile } = useUserStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [tests, setTests] = useState<Test[]>([]);
+  const [packages, setPackages] = useState<PurchasedPackage[]>([]);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [totalPurchases, setTotalPurchases] = useState(0);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,13 +41,15 @@ export default function DashboardPage() {
         // Fetch user profile from API with caching
         await fetchProfile();
         
-        // Load dashboard stats and tests (still using mock for now)
-        const [statsData, testsData] = await Promise.all([
-          mockDashboardService.getStats(),
-          mockTestService.getAllTests(),
-        ]);
+        // Load dashboard stats (still using mock for now)
+        const statsData = await mockDashboardService.getStats();
         setStats(statsData);
-        setTests(testsData.tests.slice(0, 6));
+
+        // Fetch purchased packages from payments API
+        const purchasedData = await purchasesService.getPurchasedContent();
+        setPackages(purchasedData.purchasedPackages);
+        setTotalSpent(purchasedData.totalSpent);
+        setTotalPurchases(purchasedData.totalPurchases);
       } catch (error) {
         console.error('Error loading dashboard:', error);
       } finally {
@@ -189,45 +193,113 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Available Tests Section */}
+        {/* Purchased Packages Section */}
         <div className="mb-8 sm:mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4">
             <div>
               <h2 className={`text-2xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
-                Available Tests
+                My Purchased Packages
               </h2>
               <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Start practicing with our comprehensive test series
+                Total Spent: ₹{totalSpent} • {totalPurchases} Purchase{totalPurchases !== 1 ? 's' : ''}
               </p>
             </div>
             <Link 
-              href="/tests"
+              href="/my-tests"
               className={`px-4 py-2 rounded-lg font-medium transition-colors text-center ${
                 darkMode
                   ? 'bg-[#2596be]/20 text-[#60DFFF] hover:bg-[#2596be]/30'
                   : 'bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20'
               }`}
             >
-              View All
+              View All Tests
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {tests.map((test) => (
-              <ContentCard
-                key={test.id}
-                href={`/tests/${test.id}`}
-                title={test.title}
-                description={test.description}
-                badge={formatExamType(test.examType)}
-                metadata={[
-                  { label: "Duration", value: `${test.duration} min` },
-                  { label: "Questions", value: `${test.totalQuestions}` },
-                  { label: "Marks", value: `${test.totalMarks}` },
-                ]}
-              />
-            ))}
-          </div>
+          {packages.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {packages.map((pkg) => (
+                <Link
+                  key={pkg.packageId}
+                  href={`/packages/${pkg.packageId}`}
+                  className={`overflow-hidden rounded-2xl border backdrop-blur-2xl transition-all hover:scale-[1.02] ${
+                    darkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-gray-200 hover:shadow-lg'
+                  }`}
+                >
+                  {/* Thumbnail */}
+                  {pkg.thumbnail && (
+                    <div className="relative h-40 w-full overflow-hidden">
+                      <img
+                        src={pkg.thumbnail}
+                        alt={pkg.packageName}
+                        className="w-full h-full object-cover"
+                      />
+                      {pkg.category && (
+                        <div className="absolute top-3 right-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md ${
+                            darkMode ? 'bg-[#2596be]/80 text-white' : 'bg-[#2596be] text-white'
+                          }`}>
+                            {pkg.category}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="p-6">
+                    <h3 className={`text-lg font-bold mb-2 line-clamp-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {pkg.packageName}
+                    </h3>
+                    
+                    {pkg.hasTests ? (
+                      <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {pkg.tests.length} test{pkg.tests.length !== 1 ? 's' : ''} available
+                      </p>
+                    ) : (
+                      <p className={`text-sm mb-4 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                        No tests available yet
+                      </p>
+                    )}
+
+                    <div className={`grid grid-cols-1 gap-3 pt-4 border-t ${
+                      darkMode ? 'border-white/10' : 'border-gray-200'
+                    }`}>
+                      <div>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Package Slug</p>
+                        <p className={`text-sm font-mono font-semibold ${darkMode ? 'text-white' : 'text-gray-900'} truncate`}>
+                          {pkg.packageSlug}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`mt-3 pt-3 border-t ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                      <p className={`text-xs ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+                        ✓ Purchased & Active
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className={`text-center py-12 rounded-2xl border ${
+              darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
+            }`}>
+              <ShoppingBag className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+              <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                No Purchased Packages Yet
+              </h3>
+              <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Purchase test series packages from the main site to get started
+              </p>
+              <a
+                href={process.env.NEXT_PUBLIC_MAIN_SITE_URL || 'http://localhost:3000'}
+                className="inline-block px-6 py-3 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium"
+              >
+                Browse Packages
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}

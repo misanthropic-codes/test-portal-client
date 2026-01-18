@@ -63,6 +63,254 @@ export interface MyTestsResponse {
   accessibleTestIds: string[];
 }
 
+// Test Details Interfaces
+export interface TestSection {
+  id: string;
+  name: string;
+  subject: string;
+  duration: number;
+  questionCount: number;
+  marks: number;
+  isTimed: boolean;
+}
+
+export interface MarkingScheme {
+  correctMarks: number;
+  incorrectMarks: number;
+  unattemptedMarks: number;
+}
+
+export interface TestStats {
+  totalAttempts: number;
+  studentsAttempted: number;
+  averageScore: number;
+  highestScore: number;
+}
+
+export interface UserAttempt {
+  attemptId: string;
+  score: number;
+  percentage: number;
+  rank?: number;
+  attemptedAt: string;
+}
+
+export interface TestDetails {
+  id: string;
+  title: string;
+  description: string;
+  examType: string;
+  testType: string;
+  difficulty: string;
+  subjects: string[];
+  syllabus: string[];
+  duration: number;
+  totalMarks: number;
+  totalQuestions: number;
+  thumbnail: string;
+  status: string;
+  isPaid: boolean;
+  price: number;
+  instructions: string[];
+  sections: TestSection[];
+  markingScheme: MarkingScheme;
+  prerequisites: string;
+  attemptCount: number;
+  isAttempted: boolean;
+  userAttempts: UserAttempt[];
+  stats: TestStats;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestDetailsResponse {
+  success: boolean;
+  data: TestDetails;
+}
+
+// Attempt History Interfaces
+export interface AttemptTestInfo {
+  testId: string;
+  title: string;
+  category: string;
+  type: string;
+  duration: number;
+  totalMarks: number;
+}
+
+export interface AttemptHistoryItem {
+  attemptId: string;
+  test: AttemptTestInfo;
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  score: number;
+  timeTaken: number;
+  startTime: string;
+  endTime?: string;
+}
+
+export interface AttemptHistoryResponse {
+  success: boolean;
+  data: {
+    attempts: AttemptHistoryItem[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      hasMore: boolean;
+    };
+  };
+}
+
+export interface InProgressAttemptResponse {
+  success: boolean;
+  data: {
+    attemptId: string;
+    testId: string;
+    status: 'IN_PROGRESS';
+    startTime: string;
+    endTime: string;
+    duration: number;
+    remainingTime: number;
+  } | null;
+}
+
+export interface ResumeAttemptResponse {
+  success: boolean;
+  message: string;
+  data: {
+    attemptId: string;
+    testId: string;
+    status: 'IN_PROGRESS';
+    startTime: string;
+    endTime: string;
+    duration: number;
+    remainingTime: number;
+  };
+}
+
+// Test Attempt Interfaces
+export interface StartTestResponse {
+  success: boolean;
+  message: string;
+  data: {
+    attemptId: string;
+    testId: string;
+    userId: string;
+    testTitle: string;
+    duration: number;
+    startTime: string;
+    endTime: string;
+    totalQuestions: number;
+    totalMarks: number;
+    marksPerQuestion: number;
+    negativeMarking: number;
+    status: 'IN_PROGRESS';
+    sections: {
+      sectionId: string;
+      sectionName: string;
+      totalQuestions: number;
+    }[];
+  };
+}
+
+export interface QuestionData {
+  questionId: string;
+  questionNumber: number;
+  questionText: string;
+  questionType: 'single-correct' | 'multiple-correct' | 'numerical' | 'integer';
+  options?: string[];
+  questionImage?: string;
+  marks: number;
+  negativeMarks: number;
+  savedAnswer: string | null;
+  isMarkedForReview: boolean;
+  isAnswered: boolean;
+  timeSpent: number;
+}
+
+export interface GetQuestionsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    attemptId: string;
+    testTitle: string;
+    duration: number;
+    startTime: string;
+    endTime: string;
+    remainingTime: number;
+    questions: QuestionData[];
+    totalQuestions: number;
+    answeredQuestions: number;
+    markedForReview: number;
+    notVisited: number;
+    notAnswered: number;
+  };
+}
+
+export interface SaveAnswerResponse {
+  success: boolean;
+  message: string;
+  data: {
+    attemptId: string;
+    questionId: string;
+    answer: string;
+    timeSpent: number;
+    savedAt: string;
+  };
+}
+
+export interface AttemptStatusResponse {
+  success: boolean;
+  data: {
+    attemptId: string;
+    testId: string;
+    testTitle: string;
+    status: 'IN_PROGRESS' | 'SUBMITTED' | 'AUTO_SUBMITTED';
+    startTime: string;
+    endTime: string;
+    currentTime: string;
+    remainingTime: number;
+    duration: number;
+    elapsedTime: number;
+    totalQuestions: number;
+    answeredQuestions: number;
+    notAnswered: number;
+    markedForReview: number;
+    notVisited: number;
+    progress: {
+      percentage: number;
+      answeredPercentage: number;
+      visitedPercentage: number;
+    };
+  };
+}
+
+export interface SubmitTestResponse {
+  success: boolean;
+  message: string;
+  data: {
+    attemptId: string;
+    testId: string;
+    userId: string;
+    status: 'SUBMITTED';
+    submittedAt: string;
+    timeSpent: number;
+    score: {
+      totalQuestions: number;
+      attemptedQuestions: number;
+      correctAnswers: number;
+      incorrectAnswers: number;
+      unanswered: number;
+      marksObtained: number;
+      totalMarks: number;
+      percentage: number;
+      accuracy: number;
+    };
+    evaluationStatus: 'COMPLETED';
+    resultId: string;
+  };
+}
+
 export const testsService = {
   /**
    * Get all tests accessible to the user (purchased or assigned)
@@ -89,6 +337,175 @@ export const testsService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching tests by package:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get detailed test information
+   * GET /tests/:testId
+   */
+  getTestDetails: async (testId: string): Promise<TestDetailsResponse> => {
+    try {
+      const response = await apiClient.get<TestDetailsResponse>(`/tests/${testId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching test details:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get attempt history for the logged-in user
+   * GET /attempts/history
+   */
+  getAttemptHistory: async (page: number = 1, limit: number = 10): Promise<AttemptHistoryResponse> => {
+    try {
+      const response = await apiClient.get<AttemptHistoryResponse>(
+        `/attempts/history?page=${page}&limit=${limit}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attempt history:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Check if test has an in-progress attempt
+   * GET /attempts/test/:testId/in-progress
+   */
+  getInProgressAttempt: async (testId: string): Promise<InProgressAttemptResponse> => {
+    try {
+      const response = await apiClient.get<InProgressAttemptResponse>(
+        `/attempts/test/${testId}/in-progress`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error checking in-progress attempt:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Resume an in-progress attempt
+   * POST /attempts/:attemptId/resume
+   */
+  resumeAttempt: async (attemptId: string): Promise<ResumeAttemptResponse> => {
+    try {
+      const response = await apiClient.post<ResumeAttemptResponse>(
+        `/attempts/${attemptId}/resume`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error resuming attempt:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Start a new test attempt
+   * POST /tests/:testId/start
+   */
+  startTest: async (testId: string): Promise<StartTestResponse> => {
+    try {
+      const response = await apiClient.post<StartTestResponse>(`/tests/${testId}/start`);
+      return response.data;
+    } catch (error) {
+      console.error('Error starting test:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get questions for an attempt
+   * GET /attempts/:attemptId/questions
+   */
+  getTestQuestions: async (attemptId: string, sectionId?: string): Promise<GetQuestionsResponse> => {
+    try {
+      const url = sectionId 
+        ? `/attempts/${attemptId}/questions?sectionId=${sectionId}`
+        : `/attempts/${attemptId}/questions`;
+      
+      const response = await apiClient.get<GetQuestionsResponse>(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching test questions:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Save answer for a question
+   * POST /attempts/:attemptId/answer
+   */
+  saveAnswer: async (
+    attemptId: string,
+    questionId: string,
+    answer: string,
+    timeSpent: number
+  ): Promise<SaveAnswerResponse> => {
+    try {
+      const response = await apiClient.post<SaveAnswerResponse>(
+        `/attempts/${attemptId}/answer`,
+        { questionId, answer, timeSpent }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error saving answer:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark question for review
+   * POST /attempts/:attemptId/mark-review
+   */
+  markForReview: async (
+    attemptId: string,
+    questionId: string,
+    isMarkedForReview: boolean
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string }>(
+        `/attempts/${attemptId}/mark-review`,
+        { questionId, isMarkedForReview }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error marking for review:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get current status of test attempt
+   * GET /attempts/:attemptId/status
+   */
+  getAttemptStatus: async (attemptId: string): Promise<AttemptStatusResponse> => {
+    try {
+      const response = await apiClient.get<AttemptStatusResponse>(
+        `/attempts/${attemptId}/status`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attempt status:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Submit test
+   * POST /attempts/:attemptId/submit
+   */
+  submitTest: async (attemptId: string): Promise<SubmitTestResponse> => {
+    try {
+      const response = await apiClient.post<SubmitTestResponse>(
+        `/attempts/${attemptId}/submit`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting test:', error);
       throw error;
     }
   },

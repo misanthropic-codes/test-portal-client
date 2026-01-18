@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { mockResultsService } from '@/services/mock/mockData';
-import { TestResult } from '@/types';
-import { ArrowLeft, Trophy, TrendingUp, Clock, Target, Award, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { resultsService, TestResultResponse } from '@/services/results.service';
+import { ArrowLeft, Trophy, TrendingUp, Clock, Target, Award, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
-  const [result, setResult] = useState<TestResult | null>(null);
+  const { isAuthenticated } = useAuth();
+  const [result, setResult] = useState<TestResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -26,20 +28,25 @@ export default function ResultsPage() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+
     const loadResult = async () => {
       try {
         const attemptId = params.attemptId as string;
-        const resultData = await mockResultsService.getResult(attemptId);
-        setResult(resultData);
-      } catch (error) {
-        console.error('Error loading result:', error);
+        const response = await resultsService.getTestResult(attemptId);
+        setResult(response);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load results');
       } finally {
         setLoading(false);
       }
     };
 
     loadResult();
-  }, [params.attemptId]);
+  }, [params.attemptId, isAuthenticated, router]);
 
   if (loading) {
     return (
@@ -49,25 +56,26 @@ export default function ResultsPage() {
     );
   }
 
-  if (!result) {
+  if (!result || error) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
         <div className="text-center">
           <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            Result Not Found
+            {error || 'Result Not Found'}
           </h2>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/my-tests')}
             className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0]"
           >
-            Go to Dashboard
+            Back to My Tests
           </button>
         </div>
       </div>
     );
   }
 
-  const percentageColor = result.percentage >= 75 ? 'text-green-500' : result.percentage >= 50 ? 'text-yellow-500' : 'text-red-500';
+  const data = result.data;
+  const percentageColor = data.score.percentage >= 75 ? 'text-green-500' : data.score.percentage >= 50 ? 'text-yellow-500' : 'text-red-500';
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
@@ -115,13 +123,13 @@ export default function ResultsPage() {
         }`}>
           <Trophy className={`h-16 w-16 mx-auto mb-4 ${percentageColor}`} />
           <h2 className={`text-3xl sm:text-4xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {result.score} / {result.totalMarks}
+            {data.score.marksObtained} / {data.score.totalMarks}
           </h2>
           <p className={`text-xl ${percentageColor} font-semibold mb-4`}>
-            {result.percentage.toFixed(2)}%
+            {data.score.percentage.toFixed(2)}%
           </p>
           <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {result.testTitle}
+            {data.testTitle}
           </p>
         </div>
 
@@ -137,10 +145,10 @@ export default function ResultsPage() {
               </h3>
             </div>
             <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              #{result.rank}
+              #{data.rank.rank}
             </p>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              out of {result.totalAttempts} students
+              out of {data.rank.totalParticipants} students
             </p>
           </div>
 
@@ -155,10 +163,10 @@ export default function ResultsPage() {
               </h3>
             </div>
             <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {result.percentile.toFixed(2)}
+              {data.rank.percentile.toFixed(2)}
             </p>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Better than {result.percentile.toFixed(0)}% students
+              Better than {data.rank.percentile.toFixed(0)}% students
             </p>
           </div>
 
@@ -173,10 +181,10 @@ export default function ResultsPage() {
               </h3>
             </div>
             <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {result.timeTaken}m
+              {Math.floor(data.timeAnalysis.totalTimeSpent / 60)}m
             </p>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Speed: {result.speedAccuracy.speed.toFixed(2)} q/min
+              Avg: {data.timeAnalysis.averageTimePerQuestion.toFixed(0)}s/q
             </p>
           </div>
         </div>
@@ -189,20 +197,20 @@ export default function ResultsPage() {
             Subject-wise Performance
           </h3>
           <div className="space-y-4">
-            {result.subjectWise.map((subject) => (
+            {data.subjectWiseScore.map((subject) => (
               <div key={subject.subject}>
                 <div className="flex items-center justify-between mb-2">
                   <span className={`font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     {subject.subject}
                   </span>
                   <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {subject.score} / {subject.totalMarks} ({subject.accuracy.toFixed(1)}%)
+                    {subject.marksObtained} / {subject.totalMarks} ({subject.percentage.toFixed(1)}%)
                   </span>
                 </div>
                 <div className={`w-full h-2 rounded-full ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`}>
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-[#2596be] to-[#60DFFF]"
-                    style={{ width: `${subject.accuracy}%` }}
+                    style={{ width: `${subject.percentage}%` }}
                   />
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-xs">
@@ -213,10 +221,6 @@ export default function ResultsPage() {
                   <span className="flex items-center gap-1 text-red-500">
                     <XCircle className="h-3 w-3" />
                     {subject.incorrectAnswers} Incorrect
-                  </span>
-                  <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <AlertCircle className="h-3 w-3" />
-                    {subject.unattempted} Unattempted
                   </span>
                 </div>
               </div>
@@ -237,7 +241,7 @@ export default function ResultsPage() {
                 Your Score
               </p>
               <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {result.comparison.yourScore}
+                {data.comparison.yourScore}
               </p>
             </div>
             <div className="text-center">
@@ -245,7 +249,7 @@ export default function ResultsPage() {
                 Average Score
               </p>
               <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {result.comparison.averageScore}
+                {data.comparison.averageScore}
               </p>
             </div>
             <div className="text-center">
@@ -253,7 +257,7 @@ export default function ResultsPage() {
                 Topper Score
               </p>
               <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {result.comparison.topperScore}
+                {data.comparison.highestScore}
               </p>
             </div>
           </div>
