@@ -180,11 +180,41 @@ export interface ResumeAttemptResponse {
   data: {
     attemptId: string;
     testId: string;
+    canResume: boolean;
     status: 'IN_PROGRESS';
     startTime: string;
     endTime: string;
-    duration: number;
     remainingTime: number;
+    test: {
+      title: string;
+      category: string;
+      type: string;
+      duration: number;
+      totalMarks: number;
+      marksPerQuestion: number;
+      negativeMarking: number;
+    };
+    questions: Array<{
+      questionId: string;
+      questionNumber: number;
+      questionText: string;
+      questionType: string;
+      options: string[];
+      questionImageUrl?: string;
+      marks: number;
+      negativeMarks: number;
+      savedAnswer: string | null;
+      isMarkedForReview: boolean;
+      isAnswered: boolean;
+      timeSpent: number;
+    }>;
+    statistics: {
+      totalQuestions: number;
+      answeredQuestions: number;
+      markedForReview: number;
+      notAnswered: number;
+    };
+    lastActivity: string;
   };
 }
 
@@ -220,6 +250,7 @@ export interface QuestionData {
   questionType: 'single-correct' | 'multiple-correct' | 'numerical' | 'integer';
   options?: string[];
   questionImage?: string;
+  questionImageUrl?: string; // Alternate field name from resume endpoint
   marks: number;
   negativeMarks: number;
   savedAnswer: string | null;
@@ -389,11 +420,11 @@ export const testsService = {
 
   /**
    * Resume an in-progress attempt
-   * POST /attempts/:attemptId/resume
+   * GET /attempts/:attemptId/resume
    */
   resumeAttempt: async (attemptId: string): Promise<ResumeAttemptResponse> => {
     try {
-      const response = await apiClient.post<ResumeAttemptResponse>(
+      const response = await apiClient.get<ResumeAttemptResponse>(
         `/attempts/${attemptId}/resume`
       );
       return response.data;

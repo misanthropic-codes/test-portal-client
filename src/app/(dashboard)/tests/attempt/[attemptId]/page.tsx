@@ -24,6 +24,7 @@ export default function TestAttemptPage() {
   const [answers, setAnswers] = useState<Map<string, string>>(new Map());
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedRef = useRef(false); // Prevent double loading in Strict Mode
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -43,38 +44,91 @@ export default function TestAttemptPage() {
       return;
     }
 
-    const fetchQuestions = async () => {
+    // Prevent double loading in React Strict Mode
+    if (hasLoadedRef.current) return;
+
+    const loadTestData = async () => {
       try {
+        hasLoadedRef.current = true; // Mark as loading
         setLoading(true);
-        const response = await testsService.getTestQuestions(attemptId);
         
-        setQuestions(response.data.questions);
-        setTestTitle(response.data.testTitle);
-        setEndTime(response.data.endTime);
+        // Check if we have resume data in sessionStorage
+        const storedResumeData = sessionStorage.getItem('resumeData');
         
-        // Calculate remaining time
-        const end = new Date(response.data.endTime).getTime();
-        const now = new Date().getTime();
-        const remaining = Math.floor((end - now) / 1000);
-        setRemainingSeconds(remaining > 0 ? remaining : 0);
+        if (storedResumeData) {
+          // Use resume data directly - stored response is { success, data, message }
+          const response = JSON.parse(storedResumeData);
+          sessionStorage.removeItem('resumeData'); // Clear after use
+          
+          // The actual data is in response.data or response directly depending on how it was stored
+          const resumeData = response.data || response;
+          
+          console.log('Resume data loaded:', resumeData); // Debug log
+          
+          const questionsData = resumeData.questions || [];
+          console.log('Questions found:', questionsData.length); // Debug log
+          
+          setQuestions(questionsData);
+          setTestTitle(resumeData.test?.title || 'Test');
+          setEndTime(resumeData.endTime || '');
+          setRemainingSeconds(resumeData.remainingTime || 0);
 
-        // Initialize answers and marked for review from saved state
-        const initialAnswers = new Map<string, string>();
-        const initialMarked = new Set<string>();
-        
-        response.data.questions.forEach(q => {
-          if (q.savedAnswer) {
-            initialAnswers.set(q.questionId, q.savedAnswer);
-          }
-          if (q.isMarkedForReview) {
-            initialMarked.add(q.questionId);
-          }
-        });
+          // Initialize answers and marked for review
+          const initialAnswers = new Map<string, string>();
+          const initialMarked = new Set<string>();
+          
+          questionsData.forEach((q: any) => {
+            if (q.savedAnswer) {
+              initialAnswers.set(q.questionId, q.savedAnswer);
+            }
+            if (q.isMarkedForReview) {
+              initialMarked.add(q.questionId);
+            }
+          });
 
-        setAnswers(initialAnswers);
-        setMarkedForReview(initialMarked);
+          setAnswers(initialAnswers);
+          setMarkedForReview(initialMarked);
+        } else {
+          // Fetch from API
+          const response = await testsService.getTestQuestions(attemptId);
+          
+          if (!response?.data) {
+            throw new Error('Invalid response from server');
+          }
+          
+          const questionsData = response.data.questions || [];
+          setQuestions(questionsData);
+          setTestTitle(response.data.testTitle || 'Test');
+          setEndTime(response.data.endTime || '');
+          
+          // Calculate remaining time
+          if (response.data.endTime) {
+            const end = new Date(response.data.endTime).getTime();
+            const now = new Date().getTime();
+            const remaining = Math.floor((end - now) / 1000);
+            setRemainingSeconds(remaining > 0 ? remaining : 0);
+          } else if (response.data.remainingTime) {
+            setRemainingSeconds(response.data.remainingTime);
+          }
+
+          // Initialize answers and marked for review
+          const initialAnswers = new Map<string, string>();
+          const initialMarked = new Set<string>();
+          
+          questionsData.forEach(q => {
+            if (q.savedAnswer) {
+              initialAnswers.set(q.questionId, q.savedAnswer);
+            }
+            if (q.isMarkedForReview) {
+              initialMarked.add(q.questionId);
+            }
+          });
+
+          setAnswers(initialAnswers);
+          setMarkedForReview(initialMarked);
+        }
       } catch (err: any) {
-        console.error('Error fetching questions:', err);
+        console.error('Error loading test data:', err);
         alert('Failed to load test. Redirecting...');
         router.push('/my-tests');
       } finally {
@@ -82,12 +136,12 @@ export default function TestAttemptPage() {
       }
     };
 
-    fetchQuestions();
+    loadTestData();
   }, [attemptId, isAuthenticated, router]);
 
   // Timer countdown
   useEffect(() => {
-    if (remainingSeconds <=  0) return;
+    if (remainingSeconds <= 0 || loading) return;
 
     const timer = setInterval(() => {
       setRemainingSeconds(prev => {
@@ -101,18 +155,16 @@ export default function TestAttemptPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remainingSeconds]);
+  }, [remainingSeconds, loading]);
 
   const handleAutoSubmit = async () => {
     try {
-      const response = await testsService.submitTest(attemptId);
+      await testsService.submitTest(attemptId);
       router.push(`/results/${attemptId}`);
     } catch (err) {
       console.error('Auto-submit failed:', err);
     }
   };
-
-  const currentQuestion = questions[currentQuestionIndex];
 
   const saveAnswer = useCallback(async (questionId: string, answer: string) => {
     try {
@@ -123,6 +175,7 @@ export default function TestAttemptPage() {
   }, [attemptId]);
 
   const handleAnswerSelect = (answer: string) => {
+    const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
     
     setAnswers(prev => {
@@ -143,6 +196,7 @@ export default function TestAttemptPage() {
   };
 
   const handleMarkForReview = async () => {
+    const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
     
     const isMarked = markedForReview.has(currentQuestion.questionId);
@@ -174,7 +228,7 @@ export default function TestAttemptPage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const response = await testsService.submitTest(attemptId);
+      await testsService.submitTest(attemptId);
       router.push(`/results/${attemptId}`);
     } catch (err: any) {
       alert(err.message || 'Failed to submit test');
@@ -215,20 +269,31 @@ export default function TestAttemptPage() {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
-      <div className={`min-h-screen flex items- center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2596be]"></div>
       </div>
     );
   }
 
-  if (!currentQuestion) {
+  // Get current question
+  const currentQuestion = questions[currentQuestionIndex];
+
+  // No questions state
+  if (!currentQuestion || questions.length === 0) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
         <div className="text-center">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
           <p className={darkMode ? 'text-white' : 'text-gray-900'}>No questions found</p>
+          <button
+            onClick={() => router.push('/my-tests')}
+            className="mt-4 px-4 py-2 bg-[#2596be] text-white rounded-lg"
+          >
+            Back to My Tests
+          </button>
         </div>
       </div>
     );
@@ -289,9 +354,13 @@ export default function TestAttemptPage() {
             </div>
 
             {/* Question Image */}
-            {currentQuestion.questionImage && (
+            {(currentQuestion.questionImage || currentQuestion.questionImageUrl) && (
               <div className="mb-6">
-                <img src={currentQuestion.questionImage} alt="Question" className="max-w-full rounded-lg" />
+                <img 
+                  src={currentQuestion.questionImage || currentQuestion.questionImageUrl} 
+                  alt="Question" 
+                  className="max-w-full rounded-lg" 
+                />
               </div>
             )}
 

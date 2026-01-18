@@ -80,7 +80,17 @@ export default function TestStartPage() {
 
     try {
       setResuming(true);
-      await testsService.resumeAttempt(inProgressAttempt.attemptId);
+      const response = await testsService.resumeAttempt(inProgressAttempt.attemptId);
+      
+      console.log('Resume API response:', response); // Debug
+      console.log('Storing data:', response.data); // Debug
+      console.log('Questions in response:', response.data?.questions?.length); // Debug
+      
+      // Store resume data in sessionStorage so attempt page can use it directly
+      sessionStorage.setItem('resumeData', JSON.stringify(response.data));
+      
+      // Verify it was stored
+      console.log('Stored in sessionStorage:', sessionStorage.getItem('resumeData')?.substring(0, 100));
       
       // Navigate to test attempt page
       router.push(`/tests/attempt/${inProgressAttempt.attemptId}`);
@@ -89,6 +99,7 @@ export default function TestStartPage() {
       setResuming(false);
     }
   };
+
 
   const formatRemainingTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
