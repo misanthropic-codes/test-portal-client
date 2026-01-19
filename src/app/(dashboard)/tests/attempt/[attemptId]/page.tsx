@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { testsService, QuestionData } from '@/services/tests.service';
+import { testsService, QuestionData, SubmitAnswerItem } from '@/services/tests.service';
 import { Clock, AlertCircle, Check, Flag, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -159,20 +159,23 @@ export default function TestAttemptPage() {
 
   const handleAutoSubmit = async () => {
     try {
-      await testsService.submitTest(attemptId);
+      // Build answers payload
+      const answersPayload: SubmitAnswerItem[] = questions
+        .filter(q => answers.has(q.questionId))
+        .map(q => ({
+          questionId: q.questionId,
+          sectionId: 'default',
+          answer: { selectedOptions: [answers.get(q.questionId)!] },
+          timeSpent: q.timeSpent || 0
+        }));
+
+      await testsService.submitTest(attemptId, { answers: answersPayload });
       router.push(`/results/${attemptId}`);
     } catch (err) {
       console.error('Auto-submit failed:', err);
     }
   };
 
-  const saveAnswer = useCallback(async (questionId: string, answer: string) => {
-    try {
-      await testsService.saveAnswer(attemptId, questionId, answer, 0);
-    } catch (err) {
-      console.error('Error saving answer:', err);
-    }
-  }, [attemptId]);
 
   const handleAnswerSelect = (answer: string) => {
     const currentQuestion = questions[currentQuestionIndex];
@@ -184,10 +187,7 @@ export default function TestAttemptPage() {
       return newAnswers;
     });
 
-    // Save immediately
-    saveAnswer(currentQuestion.questionId, answer);
-
-    // Update question state
+    // Update question state locally (saved to server on submit)
     setQuestions(prev => prev.map(q => 
       q.questionId === currentQuestion.questionId 
         ? { ...q, savedAnswer: answer, isAnswered: true }
@@ -228,7 +228,25 @@ export default function TestAttemptPage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await testsService.submitTest(attemptId);
+      // Build answers payload from current state
+      const answersPayload: SubmitAnswerItem[] = questions
+        .filter(q => answers.has(q.questionId))
+        .map(q => {
+          const selectedAnswer = answers.get(q.questionId)!;
+          
+          return {
+            questionId: q.questionId,
+            sectionId: 'default', // Default section ID
+            answer: {
+              selectedOptions: [selectedAnswer] // For single-correct questions
+            },
+            timeSpent: q.timeSpent || 0
+          };
+        });
+
+      console.log('Submitting answers:', answersPayload);
+
+      await testsService.submitTest(attemptId, { answers: answersPayload });
       router.push(`/results/${attemptId}`);
     } catch (err: any) {
       alert(err.message || 'Failed to submit test');

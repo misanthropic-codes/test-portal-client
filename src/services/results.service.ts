@@ -9,6 +9,48 @@ import apiClient, { handleApiError } from "./api.client";
  * - Viewing leaderboards
  */
 
+// New result response from attempts/:attemptId/result
+export interface AttemptResultAnswer {
+  questionId: string;
+  questionText: string;
+  questionType: string;
+  options: string[];
+  selectedAnswer: string;
+  correctAnswer: string | null;
+  isCorrect: boolean;
+  marksObtained: number;
+  timeSpent: number;
+  explanation: string;
+  solutionImageUrl?: string;
+}
+
+export interface AttemptResultResponse {
+  success: boolean;
+  data: {
+    attemptId: string;
+    test: {
+      testId: string;
+      title: string;
+      category: string;
+      type: string;
+    };
+    score: number;
+    totalMarks: number;
+    percentage: number;
+    timeTaken: number;
+    startTime: string;
+    submittedAt: string;
+    statistics: {
+      totalQuestions: number;
+      attempted: number;
+      correct: number;
+      incorrect: number;
+      unattempted: number;
+    };
+    answers: AttemptResultAnswer[];
+  };
+}
+
 export interface TestResultResponse {
   success: boolean;
   message: string;
@@ -177,6 +219,22 @@ export const resultsService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching test result:', error);
+      throw new Error(handleApiError(error));
+    }
+  },
+
+  /**
+   * Get attempt result with answers
+   * GET /attempts/:attemptId/result
+   */
+  getAttemptResult: async (attemptId: string): Promise<AttemptResultResponse> => {
+    try {
+      const response = await apiClient.get<AttemptResultResponse>(
+        `/attempts/${attemptId}/result`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attempt result:', error);
       throw new Error(handleApiError(error));
     }
   },

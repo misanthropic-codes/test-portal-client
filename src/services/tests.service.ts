@@ -342,6 +342,22 @@ export interface SubmitTestResponse {
   };
 }
 
+// Submit answers payload
+export interface SubmitAnswerItem {
+  questionId: string;
+  sectionId?: string;
+  answer: {
+    selectedOptions?: string[];
+    numericalAnswer?: number;
+  };
+  timeSpent: number;
+}
+
+export interface SubmitTestPayload {
+  answers: SubmitAnswerItem[];
+}
+
+
 export const testsService = {
   /**
    * Get all tests accessible to the user (purchased or assigned)
@@ -526,13 +542,14 @@ export const testsService = {
   },
 
   /**
-   * Submit test
+   * Submit test with all answers
    * POST /attempts/:attemptId/submit
    */
-  submitTest: async (attemptId: string): Promise<SubmitTestResponse> => {
+  submitTest: async (attemptId: string, payload?: SubmitTestPayload): Promise<SubmitTestResponse> => {
     try {
       const response = await apiClient.post<SubmitTestResponse>(
-        `/attempts/${attemptId}/submit`
+        `/attempts/${attemptId}/submit`,
+        payload || {}
       );
       return response.data;
     } catch (error) {
@@ -541,5 +558,6 @@ export const testsService = {
     }
   },
 };
+
 
 export default testsService;
