@@ -244,10 +244,15 @@ export interface StartTestResponse {
 }
 
 export interface QuestionData {
-  questionId: string;
+  // API returns 'id', we also support 'questionId' for resume endpoint
+  id?: string;
+  questionId?: string;
   questionNumber: number;
   questionText: string;
-  questionType: 'single-correct' | 'multiple-correct' | 'numerical' | 'integer';
+  // API returns 'type' like 'MCQ_SINGLE', resume returns 'questionType'
+  type?: 'MCQ_SINGLE' | 'MCQ_MULTI' | 'NUMERICAL' | 'INTEGER';
+  questionType?: 'single-correct' | 'multiple-correct' | 'numerical' | 'integer';
+  images?: string[];
   options?: string[];
   questionImage?: string;
   questionImageUrl?: string; // Alternate field name from resume endpoint
@@ -256,25 +261,27 @@ export interface QuestionData {
   savedAnswer: string | null;
   isMarkedForReview: boolean;
   isAnswered: boolean;
-  timeSpent: number;
+  timeSpent?: number;
+  language?: string;
+}
+
+export interface SectionData {
+  sectionId: string;
+  name: string;
+  subject: string;
+  duration: number | null;
+  questions: QuestionData[];
 }
 
 export interface GetQuestionsResponse {
   success: boolean;
-  message: string;
   data: {
     attemptId: string;
-    testTitle: string;
-    duration: number;
-    startTime: string;
-    endTime: string;
-    remainingTime: number;
-    questions: QuestionData[];
+    testId: string;
+    sections: SectionData[];
     totalQuestions: number;
-    answeredQuestions: number;
-    markedForReview: number;
-    notVisited: number;
-    notAnswered: number;
+    answeredCount: number;
+    markedForReviewCount: number;
   };
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { testsService, QuestionData, SubmitAnswerItem } from '@/services/tests.service';
+import { testsService, QuestionData, SectionData, SubmitAnswerItem } from '@/services/tests.service';
 import { Clock, AlertCircle, Check, Flag, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +25,9 @@ export default function TestAttemptPage() {
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedRef = useRef(false); // Prevent double loading in Strict Mode
+
+  // Helper to get consistent question ID from either 'id' or 'questionId' field
+  const getQuestionId = (q: QuestionData): string => q.id || q.questionId || '';
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -89,38 +92,58 @@ export default function TestAttemptPage() {
           setAnswers(initialAnswers);
           setMarkedForReview(initialMarked);
         } else {
-          // Fetch from API
+          // Fetch from API - new format returns questions inside sections
           const response = await testsService.getTestQuestions(attemptId);
           
           if (!response?.data) {
             throw new Error('Invalid response from server');
           }
           
-          const questionsData = response.data.questions || [];
-          setQuestions(questionsData);
-          setTestTitle(response.data.testTitle || 'Test');
-          setEndTime(response.data.endTime || '');
+          // Flatten questions from all sections and normalize field names
+          const allQuestions: QuestionData[] = [];
+          response.data.sections?.forEach(section => {
+            section.questions.forEach(q => {
+              allQuestions.push({
+                ...q,
+                // Normalize to use questionId consistently
+                questionId: q.id || q.questionId,
+                // Normalize question type if needed
+                timeSpent: q.timeSpent || 0,
+              });
+            });
+          });
           
-          // Calculate remaining time
-          if (response.data.endTime) {
-            const end = new Date(response.data.endTime).getTime();
-            const now = new Date().getTime();
-            const remaining = Math.floor((end - now) / 1000);
-            setRemainingSeconds(remaining > 0 ? remaining : 0);
-          } else if (response.data.remainingTime) {
-            setRemainingSeconds(response.data.remainingTime);
+          console.log('Questions loaded from API:', allQuestions.length);
+          setQuestions(allQuestions);
+          setTestTitle('Test'); // Title not in new response, using default
+          
+          // Get remaining time from status endpoint if needed
+          try {
+            const statusResponse = await testsService.getAttemptStatus(attemptId);
+            if (statusResponse?.data) {
+              setRemainingSeconds(statusResponse.data.remainingTime || 0);
+              setEndTime(statusResponse.data.endTime || '');
+              if (statusResponse.data.testTitle) {
+                setTestTitle(statusResponse.data.testTitle);
+              }
+            }
+          } catch (statusErr) {
+            console.error('Could not fetch status for timer:', statusErr);
+            // Default to 3 hours if we can't get the time
+            setRemainingSeconds(3 * 60 * 60);
           }
 
           // Initialize answers and marked for review
           const initialAnswers = new Map<string, string>();
           const initialMarked = new Set<string>();
           
-          questionsData.forEach(q => {
+          allQuestions.forEach(q => {
+            const qId = q.id || q.questionId || '';
             if (q.savedAnswer) {
-              initialAnswers.set(q.questionId, q.savedAnswer);
+              initialAnswers.set(qId, q.savedAnswer);
             }
             if (q.isMarkedForReview) {
-              initialMarked.add(q.questionId);
+              initialMarked.add(qId);
             }
           });
 
@@ -161,13 +184,16 @@ export default function TestAttemptPage() {
     try {
       // Build answers payload
       const answersPayload: SubmitAnswerItem[] = questions
-        .filter(q => answers.has(q.questionId))
-        .map(q => ({
-          questionId: q.questionId,
-          sectionId: 'default',
-          answer: { selectedOptions: [answers.get(q.questionId)!] },
-          timeSpent: q.timeSpent || 0
-        }));
+        .filter(q => answers.has(getQuestionId(q)))
+        .map(q => {
+          const qId = getQuestionId(q);
+          return {
+            questionId: qId,
+            sectionId: 'default',
+            answer: { selectedOptions: [answers.get(qId)!] },
+            timeSpent: q.timeSpent || 0
+          };
+        });
 
       await testsService.submitTest(attemptId, { answers: answersPayload });
       router.push(`/results/${attemptId}`);
@@ -181,15 +207,17 @@ export default function TestAttemptPage() {
     const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
     
+    const qId = getQuestionId(currentQuestion);
+    
     setAnswers(prev => {
       const newAnswers = new Map(prev);
-      newAnswers.set(currentQuestion.questionId, answer);
+      newAnswers.set(qId, answer);
       return newAnswers;
     });
 
     // Update question state locally (saved to server on submit)
     setQuestions(prev => prev.map(q => 
-      q.questionId === currentQuestion.questionId 
+      getQuestionId(q) === qId
         ? { ...q, savedAnswer: answer, isAnswered: true }
         : q
     ));
@@ -199,24 +227,25 @@ export default function TestAttemptPage() {
     const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
     
-    const isMarked = markedForReview.has(currentQuestion.questionId);
+    const qId = getQuestionId(currentQuestion);
+    const isMarked = markedForReview.has(qId);
     
     setMarkedForReview(prev => {
       const newSet = new Set(prev);
       if (isMarked) {
-        newSet.delete(currentQuestion.questionId);
+        newSet.delete(qId);
       } else {
-        newSet.add(currentQuestion.questionId);
+        newSet.add(qId);
       }
       return newSet;
     });
 
     try {
-      await testsService.markForReview(attemptId, currentQuestion.questionId, !isMarked);
+      await testsService.markForReview(attemptId, qId, !isMarked);
       
       // Update question state
       setQuestions(prev => prev.map(q => 
-        q.questionId === currentQuestion.questionId 
+        getQuestionId(q) === qId
           ? { ...q, isMarkedForReview: !isMarked }
           : q
       ));
@@ -230,12 +259,13 @@ export default function TestAttemptPage() {
     try {
       // Build answers payload from current state
       const answersPayload: SubmitAnswerItem[] = questions
-        .filter(q => answers.has(q.questionId))
+        .filter(q => answers.has(getQuestionId(q)))
         .map(q => {
-          const selectedAnswer = answers.get(q.questionId)!;
+          const qId = getQuestionId(q);
+          const selectedAnswer = answers.get(qId)!;
           
           return {
-            questionId: q.questionId,
+            questionId: qId,
             sectionId: 'default', // Default section ID
             answer: {
               selectedOptions: [selectedAnswer] // For single-correct questions
@@ -262,13 +292,14 @@ export default function TestAttemptPage() {
   };
 
   const getQuestionStatus = (q: QuestionData) => {
-    if (q.isAnswered || answers.has(q.questionId)) {
-      if (q.isMarkedForReview || markedForReview.has(q.questionId)) {
+    const qId = getQuestionId(q);
+    if (q.isAnswered || answers.has(qId)) {
+      if (q.isMarkedForReview || markedForReview.has(qId)) {
         return 'answered-marked';
       }
       return 'answered';
     }
-    if (q.isMarkedForReview || markedForReview.has(q.questionId)) {
+    if (q.isMarkedForReview || markedForReview.has(qId)) {
       return 'marked';
     }
     return 'not-answered';
@@ -386,7 +417,7 @@ export default function TestAttemptPage() {
             <div className="space-y-3 mb-6">
               {currentQuestion.options?.map((option, idx) => {
                 const optionKey = String.fromCharCode(65 + idx); // A, B, C, D
-                const isSelected = answers.get(currentQuestion.questionId) === option;
+                const isSelected = answers.get(getQuestionId(currentQuestion)) === option;
                 
                 return (
                   <button
@@ -425,7 +456,7 @@ export default function TestAttemptPage() {
               <button
                 onClick={handleMarkForReview}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
-                  markedForReview.has(currentQuestion.questionId)
+                  markedForReview.has(getQuestionId(currentQuestion))
                     ? 'bg-yellow-500 text-white'
                     : darkMode
                       ? 'bg-white/10 text-gray-300 hover:bg-white/20'
@@ -433,7 +464,7 @@ export default function TestAttemptPage() {
                 }`}
               >
                 <Flag className="h-4 w-4" />
-                {markedForReview.has(currentQuestion.questionId) ? 'Unmark' : 'Mark for Review'}
+                {markedForReview.has(getQuestionId(currentQuestion)) ? 'Unmark' : 'Mark for Review'}
               </button>
 
               <div className="flex gap-3">
@@ -496,7 +527,7 @@ export default function TestAttemptPage() {
               
               return (
                <button
-                  key={q.questionId}
+                  key={getQuestionId(q)}
                   onClick={() => setCurrentQuestionIndex(idx)}
                   className={`w-10 h-10 rounded border-2 font-semibold transition-all ${
                     isCurrent 
