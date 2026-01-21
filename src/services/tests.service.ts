@@ -225,23 +225,37 @@ export interface StartTestResponse {
   data: {
     attemptId: string;
     testId: string;
-    userId: string;
-    testTitle: string;
-    duration: number;
-    startTime: string;
-    endTime: string;
-    totalQuestions: number;
-    totalMarks: number;
-    marksPerQuestion: number;
-    negativeMarking: number;
-    status: 'IN_PROGRESS';
-    sections: {
+    isResumed: boolean;
+    test: {
+      title: string;
+      category: string;
+      type: string;
+      duration: number;
+      totalMarks: number;
+      marksPerQuestion: number;
+      negativeMarking: number;
+      instructions: string[];
+    };
+    timing: {
+      startTime: string;
+      endTime: string;
+      remainingTime: number;
+    };
+    sections: Array<{
       sectionId: string;
-      sectionName: string;
+      name: string;
+      subject: string;
+      questions: QuestionData[];
+    }>;
+    statistics: {
       totalQuestions: number;
-    }[];
+      answeredCount: number;
+      markedForReviewCount: number;
+      notAnswered: number;
+    };
   };
 }
+
 
 export interface QuestionData {
   // API returns 'id', we also support 'questionId' for resume endpoint
@@ -328,23 +342,7 @@ export interface SubmitTestResponse {
   message: string;
   data: {
     attemptId: string;
-    testId: string;
-    userId: string;
-    status: 'SUBMITTED';
     submittedAt: string;
-    timeSpent: number;
-    score: {
-      totalQuestions: number;
-      attemptedQuestions: number;
-      correctAnswers: number;
-      incorrectAnswers: number;
-      unanswered: number;
-      marksObtained: number;
-      totalMarks: number;
-      percentage: number;
-      accuracy: number;
-    };
-    evaluationStatus: 'COMPLETED';
     resultId: string;
   };
 }
@@ -544,6 +542,26 @@ export const testsService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching attempt status:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Save progress (auto-save every 2 questions)
+   * POST /attempts/:attemptId/progress
+   */
+  saveProgress: async (
+    attemptId: string,
+    answers: SubmitAnswerItem[]
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string }>(
+        `/attempts/${attemptId}/progress`,
+        { answers }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error saving progress:', error);
       throw error;
     }
   },

@@ -67,6 +67,9 @@ export default function TestStartPage() {
       setStarting(true);
       const response = await testsService.startTest(testData.id);
       
+      // Store start data in sessionStorage so attempt page can use it directly
+      sessionStorage.setItem('startData', JSON.stringify(response.data));
+      
       // Navigate to test attempt page
       router.push(`/tests/attempt/${response.data.attemptId}`);
     } catch (err: any) {

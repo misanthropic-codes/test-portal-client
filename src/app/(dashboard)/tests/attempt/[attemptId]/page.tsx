@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { testsService, QuestionData, SectionData, SubmitAnswerItem } from '@/services/tests.service';
-import { Clock, AlertCircle, Check, Flag, X } from 'lucide-react';
+import { Clock, AlertCircle, Check, Flag, X, Save, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TestAttemptPage() {
@@ -23,6 +23,8 @@ export default function TestAttemptPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [answers, setAnswers] = useState<Map<string, string>>(new Map());
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [unsavedAnswers, setUnsavedAnswers] = useState<SubmitAnswerItem[]>([]);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedRef = useRef(false); // Prevent double loading in Strict Mode
 
@@ -55,10 +57,54 @@ export default function TestAttemptPage() {
         hasLoadedRef.current = true; // Mark as loading
         setLoading(true);
         
+        // Check if we have start data in sessionStorage (from new start API)
+        const storedStartData = sessionStorage.getItem('startData');
         // Check if we have resume data in sessionStorage
         const storedResumeData = sessionStorage.getItem('resumeData');
         
-        if (storedResumeData) {
+        if (storedStartData) {
+          // Use start data directly - new API returns questions in sections
+          const startData = JSON.parse(storedStartData);
+          sessionStorage.removeItem('startData'); // Clear after use
+          
+          console.log('Start data loaded:', startData);
+          
+          // Flatten questions from all sections
+          const allQuestions: QuestionData[] = [];
+          startData.sections?.forEach((section: any) => {
+            section.questions?.forEach((q: any) => {
+              allQuestions.push({
+                ...q,
+                questionId: q.id || q.questionId,
+                timeSpent: q.timeSpent || 0,
+              });
+            });
+          });
+          
+          console.log('Questions loaded from start:', allQuestions.length);
+          
+          setQuestions(allQuestions);
+          setTestTitle(startData.test?.title || 'Test');
+          setEndTime(startData.timing?.endTime || '');
+          setRemainingSeconds(startData.timing?.remainingTime || 0);
+
+          // Initialize answers and marked for review (should be empty for new start)
+          const initialAnswers = new Map<string, string>();
+          const initialMarked = new Set<string>();
+          
+          allQuestions.forEach((q: any) => {
+            const qId = q.id || q.questionId || '';
+            if (q.savedAnswer) {
+              initialAnswers.set(qId, q.savedAnswer);
+            }
+            if (q.isMarkedForReview) {
+              initialMarked.add(qId);
+            }
+          });
+
+          setAnswers(initialAnswers);
+          setMarkedForReview(initialMarked);
+        } else if (storedResumeData) {
           // Use resume data directly - stored response is { success, data, message }
           const response = JSON.parse(storedResumeData);
           sessionStorage.removeItem('resumeData'); // Clear after use
@@ -202,6 +248,67 @@ export default function TestAttemptPage() {
     }
   };
 
+  // Auto-save effect: triggers when 2+ unsaved answers are collected
+  useEffect(() => {
+    if (unsavedAnswers.length >= 2) {
+      handleSaveProgress();
+    }
+  }, [unsavedAnswers]);
+
+  // Save progress function
+  const handleSaveProgress = async () => {
+    if (unsavedAnswers.length === 0) return;
+    
+    setSaveStatus('saving');
+    try {
+      await testsService.saveProgress(attemptId, unsavedAnswers);
+      setUnsavedAnswers([]); // Clear after successful save
+      setSaveStatus('saved');
+      
+      // Reset to idle after 2 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2000);
+    } catch (err) {
+      console.error('Error saving progress:', err);
+      setSaveStatus('error');
+      
+      // Reset to idle after 3 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    }
+  };
+
+  // Manual save button handler
+  const handleManualSave = async () => {
+    // Build payload with all current answers
+    const allAnswersPayload: SubmitAnswerItem[] = questions
+      .filter(q => answers.has(getQuestionId(q)))
+      .map(q => {
+        const qId = getQuestionId(q);
+        return {
+          questionId: qId,
+          sectionId: 'default',
+          answer: { selectedOptions: [answers.get(qId)!] },
+          timeSpent: q.timeSpent || 0
+        };
+      });
+    
+    if (allAnswersPayload.length === 0) return;
+    
+    setSaveStatus('saving');
+    try {
+      await testsService.saveProgress(attemptId, allAnswersPayload);
+      setUnsavedAnswers([]); // Clear unsaved
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err) {
+      console.error('Error saving progress:', err);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
 
   const handleAnswerSelect = (answer: string) => {
     const currentQuestion = questions[currentQuestionIndex];
@@ -221,6 +328,24 @@ export default function TestAttemptPage() {
         ? { ...q, savedAnswer: answer, isAnswered: true }
         : q
     ));
+
+    // Track for auto-save
+    const answerItem: SubmitAnswerItem = {
+      questionId: qId,
+      sectionId: 'default',
+      answer: { selectedOptions: [answer] },
+      timeSpent: currentQuestion.timeSpent || 0
+    };
+    setUnsavedAnswers(prev => {
+      // Replace if already exists, otherwise add
+      const existing = prev.findIndex(a => a.questionId === qId);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = answerItem;
+        return updated;
+      }
+      return [...prev, answerItem];
+    });
   };
 
   const handleMarkForReview = async () => {
@@ -276,8 +401,9 @@ export default function TestAttemptPage() {
 
       console.log('Submitting answers:', answersPayload);
 
-      await testsService.submitTest(attemptId, { answers: answersPayload });
-      router.push(`/results/${attemptId}`);
+      const response = await testsService.submitTest(attemptId, { answers: answersPayload });
+      // Use resultId from response for redirect
+      router.push(`/results/${response.data.resultId}`);
     } catch (err: any) {
       alert(err.message || 'Failed to submit test');
       setSubmitting(false);
@@ -360,6 +486,45 @@ export default function TestAttemptPage() {
           </h1>
           
           <div className="flex items-center gap-4">
+            {/* Save Status Indicator */}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+              saveStatus === 'saving' 
+                ? darkMode ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                : saveStatus === 'saved'
+                  ? darkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                  : saveStatus === 'error'
+                    ? darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
+                    : darkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-600'
+            }`}>
+              {saveStatus === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saveStatus === 'saved' && <Cloud className="h-4 w-4" />}
+              {saveStatus === 'error' && <CloudOff className="h-4 w-4" />}
+              {saveStatus === 'idle' && <Cloud className="h-4 w-4" />}
+              <span>
+                {saveStatus === 'saving' && 'Saving...'}
+                {saveStatus === 'saved' && 'Saved ✓'}
+                {saveStatus === 'error' && 'Save failed'}
+                {saveStatus === 'idle' && (unsavedAnswers.length > 0 ? `${unsavedAnswers.length} unsaved` : 'Saved')}
+              </span>
+            </div>
+
+            {/* Manual Save Button */}
+            <button
+              onClick={handleManualSave}
+              disabled={saveStatus === 'saving' || answers.size === 0}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+                saveStatus === 'saving' || answers.size === 0
+                  ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                  : darkMode
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <Save className="h-4 w-4" />
+              Save
+            </button>
+
+            {/* Timer */}
             <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
               remainingSeconds < 300 
                 ? darkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
