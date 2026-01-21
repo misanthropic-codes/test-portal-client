@@ -582,12 +582,12 @@ export default function TestAttemptPage() {
             <div className="space-y-3 mb-6">
               {currentQuestion.options?.map((option, idx) => {
                 const optionKey = String.fromCharCode(65 + idx); // A, B, C, D
-                const isSelected = answers.get(getQuestionId(currentQuestion)) === option;
+                const isSelected = answers.get(getQuestionId(currentQuestion)) === optionKey;
                 
                 return (
                   <button
                     key={idx}
-                    onClick={() => handleAnswerSelect(option)}
+                    onClick={() => handleAnswerSelect(optionKey)}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                       isSelected
                         ? darkMode
