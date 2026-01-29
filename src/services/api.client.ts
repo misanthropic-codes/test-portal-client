@@ -7,7 +7,7 @@ import { tokenManager } from "@/utils/tokenManager";
 
 if (!process.env.NEXT_PUBLIC_API_URL) {
   console.warn(
-    "⚠️ NEXT_PUBLIC_API_URL is not set. Please configure it in your .env file."
+    "⚠️ NEXT_PUBLIC_API_URL is not set. Please configure it in your .env file.",
   );
 }
 
@@ -47,7 +47,7 @@ apiClient.interceptors.request.use(
   (error) => {
     console.error("❌ API Request Error:", error);
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - handle common errors and log responses
@@ -81,13 +81,9 @@ apiClient.interceptors.response.use(
           const response = await axios.post<{
             accessToken: string;
             refreshToken?: string;
-          }>(
-            `${
-              process.env.NEXT_PUBLIC_API_URL ||
-              "https://nhgj9d2g-8080.inc1.devtunnels.ms/api/v1"
-            }/auth/refresh`,
-            { refreshToken }
-          );
+          }>(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+            refreshToken,
+          });
 
           // CRITICAL: Immediately store the new tokens
           const { accessToken, refreshToken: newRefreshToken } = response.data;
@@ -132,7 +128,7 @@ apiClient.interceptors.response.use(
     });
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;
