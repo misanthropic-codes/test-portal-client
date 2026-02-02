@@ -139,6 +139,12 @@ export default function DashboardPage() {
               >
                 History
               </Link>
+              <Link
+                href="/counselling/enrollments"
+                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
+              >
+                Counselling
+              </Link>
             </nav>
           </div>
 
