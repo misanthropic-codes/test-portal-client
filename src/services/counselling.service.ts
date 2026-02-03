@@ -8,21 +8,31 @@ import apiClient, { handleApiError } from "./api.client";
 // Types
 export interface CounsellingEnrollment {
   _id: string;
-  user: string;
-  packageSnapshot: {
+  userId: string;
+  packageId?: {
     _id: string;
-    title: string;
+    name: string;
     slug: string;
+    examType: string;
     description: string;
+    shortDescription: string;
     price: number;
-    discountPrice?: number;
-    sessionsIncluded: number;
+    discountPrice: number;
     validityDays: number;
-    exam: string;
+    maxSessions: number;
+    sessionDuration: number;
+  };
+  packageSnapshot: {
+    name: string;
+    examType: string;
+    maxSessions: number;
   };
   sessionsUsed: number;
   sessionsRemaining: number;
-  status: "active" | "expired" | "cancelled";
+  status: "active" | "expired" | "cancelled" | "refunded";
+  paymentId: string;
+  amountPaid: number;
+  enrolledAt: string;
   expiresAt: string;
   createdAt: string;
   updatedAt: string;
@@ -74,12 +84,17 @@ const counsellingService = {
       console.log(
         "🚀 [counsellingService] GET /counselling/enrollments/my",
       );
-      const response = await apiClient.get<{
-        success: boolean;
-        data: CounsellingEnrollment[];
-      }>("/counselling/enrollments/my");
+      const response = await apiClient.get<
+        | { success: boolean; data: CounsellingEnrollment[] }
+        | CounsellingEnrollment[]
+      >("/counselling/enrollments/my");
 
       console.log("✅ [counsellingService] Response:", response.data);
+      
+      // Handle both wrapped and direct array responses
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
       return response.data.data || [];
     } catch (error) {
       console.error(
