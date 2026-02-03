@@ -46,7 +46,7 @@ export interface CounsellingSession {
   preferredTimeSlot: string;
   agenda: string;
   meetingPreference: "google_meet" | "zoom";
-  status: "pending" | "scheduled" | "completed" | "cancelled";
+  status: "pending_assignment" | "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show";
   meetingLink?: string;
   scheduledDate?: string;
   counsellor?: {
@@ -55,6 +55,13 @@ export interface CounsellingSession {
     email: string;
     title: string;
   };
+  counsellorId?: {
+    _id: string;
+    name: string;
+    email: string;
+    title: string;
+    image?: string;
+  } | string;
   cancellationReason?: string;
   createdAt: string;
   updatedAt: string;
@@ -69,9 +76,27 @@ export interface BookSessionPayload {
 }
 
 export interface GetSessionsParams {
-  status?: "pending" | "scheduled" | "completed" | "cancelled";
+  status?: "pending_assignment" | "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show";
   limit?: number;
   page?: number;
+}
+
+export interface Counsellor {
+  _id: string;
+  name: string;
+  image: string;
+  specialization: string;
+  experience: number;
+  rating: number;
+  totalSessions: number;
+  about: string;
+}
+
+export interface ReviewPayload {
+  sessionId: string;
+  counsellorId: string;
+  rating: number;
+  review: string;
 }
 
 const counsellingService = {
@@ -151,6 +176,9 @@ const counsellingService = {
       }>("/counselling/sessions/my", { params });
 
       console.log("✅ [counsellingService] Response:", response.data);
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
       return response.data.data || [];
     } catch (error) {
       console.error(
@@ -184,6 +212,49 @@ const counsellingService = {
     } catch (error) {
       console.error(
         "❌ [counsellingService] Failed to cancel session:",
+        error,
+      );
+      throw new Error(handleApiError(error));
+    }
+  },
+
+  /**
+   * Submit a review for a completed session
+   * POST /counselling/reviews
+   */
+  submitReview: async (payload: ReviewPayload): Promise<any> => {
+    try {
+      console.log("🚀 [counsellingService] POST /counselling/reviews", payload);
+      const response = await apiClient.post<{
+        success: boolean;
+        data: any;
+      }>("/counselling/reviews", payload);
+
+      console.log("✅ [counsellingService] Response:", response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error("❌ [counsellingService] Failed to submit review:", error);
+      throw new Error(handleApiError(error));
+    }
+  },
+
+  /**
+   * Get list of available counsellors
+   * GET /counselling/counsellors
+   */
+  getAvailableCounsellors: async (): Promise<Counsellor[]> => {
+    try {
+      console.log("🚀 [counsellingService] GET /counselling/counsellors");
+      const response = await apiClient.get<{
+        success: boolean;
+        data: Counsellor[];
+      }>("/counselling/counsellors");
+
+      console.log("✅ [counsellingService] Response:", response.data);
+      return response.data.data || [];
+    } catch (error) {
+      console.error(
+        "❌ [counsellingService] Failed to fetch counsellors:",
         error,
       );
       throw new Error(handleApiError(error));

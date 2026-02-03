@@ -269,15 +269,28 @@ export default function CounsellingEnrollmentsPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1
-            className={`text-3xl sm:text-4xl font-bold mb-2 ${darkMode ? "text-white" : "text-[#2596be]"}`}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1
+              className={`text-3xl sm:text-4xl font-bold mb-2 ${darkMode ? "text-white" : "text-[#2596be]"}`}
+            >
+              My Counselling Enrollments
+            </h1>
+            <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
+              Manage your counselling packages and book sessions
+            </p>
+          </div>
+          <Link
+            href="/counselling/counsellors"
+             className={`px-4 py-2 rounded-lg font-medium transition-all text-sm inline-flex items-center gap-2 ${
+              darkMode
+                ? "bg-white/10 hover:bg-white/20 text-white"
+                : "bg-white border border-gray-200 hover:bg-gray-50 text-gray-700"
+            }`}
           >
-            My Counselling Enrollments
-          </h1>
-          <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
-            Manage your counselling packages and book sessions
-          </p>
+            <User className="w-4 h-4" />
+            View Counsellors
+          </Link>
         </div>
 
         {/* Stats Cards */}

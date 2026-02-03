@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import counsellingService, {
   CounsellingSession,
 } from "@/services/counselling.service";
@@ -10,21 +12,50 @@ import {
   Clock,
   Video,
   User,
-  FileText,
   Loader2,
   CheckCircle,
   XCircle,
-  AlertCircle,
   ExternalLink,
+  Star,
+  LogOut,
+  ArrowLeft
 } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function CounsellingSessionsPage() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [sessions, setSessions] = useState<CounsellingSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<"all" | "pending" | "scheduled" | "completed" | "cancelled">("all");
+  const [selectedTab, setSelectedTab] = useState<"upcoming" | "past">("upcoming");
   const [cancelling, setCancelling] = useState<string | null>(null);
+  
+  // Theme state
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Review Modal State
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  const [reviewCounsellorId, setReviewCounsellorId] = useState<string | null>(null);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Theme observer
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setDarkMode(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    setDarkMode(document.documentElement.classList.contains("dark"));
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchSessions();
@@ -35,8 +66,14 @@ export default function CounsellingSessionsPage() {
       setLoading(true);
       setError(null);
       const data = await counsellingService.getMySessions();
-      // Sort by creation date, most recent first
-      setSessions(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      // Sort by scheduledDate or preferredDate
+      setSessions(
+        data.sort((a, b) => {
+           const dateA = new Date(a.scheduledDate || a.preferredDate).getTime();
+           const dateB = new Date(b.scheduledDate || b.preferredDate).getTime();
+           return dateB - dateA;
+        })
+      );
     } catch (err: any) {
       console.error("Failed to fetch sessions:", err);
       setError(err.message || "Failed to load sessions");
@@ -46,13 +83,12 @@ export default function CounsellingSessionsPage() {
   };
 
   const handleCancelSession = async (sessionId: string) => {
-    const reason = window.prompt("Please provide a  reason for cancellation:");
+    const reason = window.prompt("Please provide a reason for cancellation:");
     if (!reason) return;
 
     try {
       setCancelling(sessionId);
       await counsellingService.cancelSession(sessionId, reason);
-      // Refresh sessions list
       await fetchSessions();
     } catch (err: any) {
       console.error("Failed to cancel session:", err);
@@ -62,264 +98,359 @@ export default function CounsellingSessionsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30";
-      case "completed":
-        return "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30";
-      case "cancelled":
-        return "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30";
-      case "pending":
-      default:
-        return "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30";
+  const openReviewModal = (sessionId: string, counsellorId: string) => {
+    setReviewSessionId(sessionId);
+    setReviewCounsellorId(counsellorId);
+    setRating(0);
+    setReviewText("");
+    setIsReviewOpen(true);
+  };
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewSessionId || !reviewCounsellorId) return;
+
+    if (rating === 0) {
+      alert("Please provide a rating");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      await counsellingService.submitReview({
+        sessionId: reviewSessionId,
+        counsellorId: reviewCounsellorId,
+        rating,
+        review: reviewText,
+      });
+      alert("Review submitted successfully!");
+      setIsReviewOpen(false);
+    } catch (err: any) {
+      console.error("Failed to submit review:", err);
+      alert(err.message || "Failed to submit review");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
+      case "confirmed":
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">Confirmed</Badge>;
       case "scheduled":
-        return <CheckCircle className="w-4 h-4" />;
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">Scheduled</Badge>;
       case "completed":
-        return <CheckCircle className="w-4 h-4" />;
+        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200">Completed</Badge>;
       case "cancelled":
-        return <XCircle className="w-4 h-4" />;
-      case "pending":
+        return <Badge variant="destructive">Cancelled</Badge>;
+      case "pending_assignment":
       default:
-        return <AlertCircle className="w-4 h-4" />;
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200">Pending</Badge>;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
+  // Safe access for counsellor details
+  const getCounsellorName = (session: CounsellingSession) => {
+    if (session.counsellor) return session.counsellor.name;
+    if (session.counsellorId && typeof session.counsellorId === 'object') {
+      return (session.counsellorId as any).name;
+    }
+    return "Pending Assignment";
+  };
+  
+  const getCounsellorId = (session: CounsellingSession): string | null => {
+      if (session.counsellor) return session.counsellor._id;
+      if (session.counsellorId && typeof session.counsellorId === 'object') {
+          return (session.counsellorId as any)._id;
+      }
+      if (typeof session.counsellorId === 'string') return session.counsellorId;
+      return null;
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const filteredSessions = selectedTab === "all"
-    ? sessions
-    : sessions.filter((s) => s.status === selectedTab);
-
-  const canCancelSession = (session: CounsellingSession) => {
-    return session.status === "pending" || session.status === "scheduled";
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
-          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
-            Failed to Load Sessions
-          </h3>
-          <p className="text-red-700 dark:text-red-300">{error}</p>
-          <button
-            onClick={() => fetchSessions()}
-            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const filteredSessions = sessions.filter(session => {
+     const isPast = ["completed", "cancelled", "no-show"].includes(session.status);
+     const isUpcoming = ["pending_assignment", "scheduled", "confirmed"].includes(session.status);
+     
+     if (selectedTab === "past") return isPast;
+     return isUpcoming;
+  });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          My Sessions
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          View and manage your counselling sessions
-        </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-4">
-          {["all", "pending", "scheduled", "completed", "cancelled"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setSelectedTab(tab as typeof selectedTab)}
-              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                selectedTab === tab
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600"
-              }`}
+    <div className={`min-h-screen ${darkMode ? "bg-[#071219]" : "bg-gray-50"}`}>
+        {/* Navbar */}
+      <header
+        className="sticky top-0 z-50 w-full border-b backdrop-blur-xl"
+        style={{
+          backgroundColor: darkMode
+            ? "rgba(10, 15, 20, 0.58)"
+            : "rgba(255, 255, 255, 0.55)",
+          borderColor: darkMode
+            ? "rgba(255, 255, 255, 0.08)"
+            : "rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link
+              href="/dashboard"
+              className={`font-bold text-lg sm:text-xl ${darkMode ? "text-white" : "text-[#2596be]"}`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {tab !== "all" && (
-                <span className="ml-2 text-xs">
-                  ({sessions.filter((s) => s.status === tab).length})
-                </span>
-              )}
-              {tab === "all" && (
-                <span className="ml-2 text-xs">
-                  ({sessions.length})
-                </span>
+              Test Portal
+            </Link>
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
+              <Link
+                href="/dashboard"
+                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/tests"
+                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
+              >
+                Tests
+              </Link>
+              <Link
+                href="/analytics"
+                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
+              >
+                Analytics
+              </Link>
+              <Link
+                href="/history"
+                className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
+              >
+                History
+              </Link>
+              <Link
+                href="/counselling/enrollments"
+                className={`font-medium transition-colors ${darkMode ? "text-white" : "text-[#2596be]"}`}
+              >
+                Counselling
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => {
+                const html = document.documentElement;
+                html.classList.toggle("dark");
+                localStorage.setItem(
+                  "theme",
+                  html.classList.contains("dark") ? "dark" : "light"
+                );
+              }}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="h-5 w-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  />
+                </svg>
               )}
             </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Sessions List */}
-      {filteredSessions.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Sessions Found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            You don&apos;t have any {selectedTab === "all" ? "" : selectedTab} sessions yet.
-          </p>
-          <button
-            onClick={() => router.push("/counselling/enrollments")}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            View My Enrollments
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredSessions.map((session) => (
-            <div
-              key={session._id}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow"
+            <Link
+              href="/profile"
+              className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${getStatusColor(session.status)}`}
-                    >
-                      {getStatusIcon(session.status)}
-                      {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-                    </span>
-                    {session.status === "scheduled" && session.scheduledDate && (
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <Calendar className="w-4 h-4 inline mr-1" />
-                        {formatDateTime(session.scheduledDate)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Enrollment Info */}
-                  {typeof session.enrollment !== "string" && (
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                      {session.enrollment.packageSnapshot.title}
-                    </h3>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  {session.meetingLink && session.status === "scheduled" && (
-                    <a
-                      href={session.meetingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium inline-flex items-center gap-2"
-                    >
-                      <Video className="w-4 h-4" />
-                      Join Meeting
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                  {canCancelSession(session) && (
-                    <button
-                      onClick={() => handleCancelSession(session._id)}
-                      disabled={cancelling === session._id}
-                      className="px-4 py-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {cancelling === session._id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        "Cancel"
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Session Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Calendar className="w-4 h-4" />
-                  <span>Preferred: {formatDate(session.preferredDate)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>{session.preferredTimeSlot}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Video className="w-4 h-4" />
-                  <span>
-                    {session.meetingPreference === "google_meet"
-                      ? "Google Meet"
-                      : "Zoom"}
-                  </span>
-                </div>
-                {session.counsellor && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <User className="w-4 h-4" />
-                    <span>{session.counsellor.name}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Agenda */}
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                <div className="flex items-start gap-2 text-sm">
-                  <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Agenda:
-                    </p>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {session.agenda}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cancellation Reason */}
-              {session.status === "cancelled" && session.cancellationReason && (
-                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-1">
-                    Cancellation Reason:
-                  </p>
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    {session.cancellationReason}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+              <User className="h-5 w-5" />
+            </Link>
+            <button
+              onClick={logout}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-      )}
+      </header>
+
+      <div className="container mx-auto p-4 max-w-5xl space-y-6 pt-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>My Sessions</h1>
+            <p className={`mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Track and manage your upcoming counselling sessions</p>
+          </div>
+          <Button onClick={() => router.push("/counselling/book-session")}>
+            Book New Session
+          </Button>
+        </div>
+
+        <div className={`flex gap-2 border-b pb-1 ${darkMode ? "border-gray-800" : "border-gray-200"}`}>
+           <button 
+             onClick={() => setSelectedTab("upcoming")}
+             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${selectedTab === 'upcoming' ? 'border-[#2596be] text-[#2596be]' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+           >
+              Upcoming
+           </button>
+           <button 
+             onClick={() => setSelectedTab("past")}
+             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${selectedTab === 'past' ? 'border-[#2596be] text-[#2596be]' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+           >
+              Past Sessions
+           </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="p-4 rounded-lg bg-red-50 text-red-600 border border-red-200">
+             {error}
+          </div>
+        ) : filteredSessions.length === 0 ? (
+          <div className={`text-center py-12 rounded-lg border border-dashed ${darkMode ? "bg-white/5 border-white/10" : "bg-muted/30 border-gray-200"}`}>
+             <Calendar className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+             <h3 className={`text-lg font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>No {selectedTab} sessions found</h3>
+             <p className={`text-sm max-w-sm mx-auto mt-1 ${darkMode ? "text-gray-400" : "text-muted-foreground"}`}>
+               {selectedTab === 'upcoming' 
+                 ? "You don't have any sessions scheduled properly. Book a session to get started." 
+                 : "You haven't completed any sessions yet."}
+             </p>
+             {selectedTab === 'upcoming' && (
+               <Button variant="outline" className="mt-4" onClick={() => router.push("/counselling/book-session")}>
+                 Book Now
+               </Button>
+             )}
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredSessions.map((session) => (
+              <Card key={session._id} className={`overflow-hidden ${darkMode ? "bg-white/5 border-white/10" : ""}`}>
+                 <CardHeader className={`pb-3 ${darkMode ? "bg-white/5" : "bg-muted/20"}`}>
+                   <div className="flex justify-between items-start">
+                      <div>
+                         <CardTitle className={`text-lg flex items-center gap-2 ${darkMode ? "text-white" : ""}`}>
+                             {session.status === 'confirmed' ? <Video className="w-4 h-4 text-[#2596be]" /> : <Clock className="w-4 h-4 text-[#2596be]" />}
+                             {session.agenda || "Counselling Session"}
+                         </CardTitle>
+                         <CardDescription className={`mt-1 flex items-center gap-2 text-xs sm:text-sm ${darkMode ? "text-gray-400" : ""}`}>
+                            <span className={`font-medium ${darkMode ? "text-gray-300" : "text-foreground"}`}>{new Date(session.scheduledDate || session.preferredDate).toLocaleDateString("en-IN", { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            <span>•</span>
+                            <span>{session.preferredTimeSlot}</span>
+                         </CardDescription>
+                      </div>
+                      {getStatusBadge(session.status)}
+                   </div>
+                 </CardHeader>
+                 <CardContent className="pt-4 grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Counsellor</p>
+                       <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <span className={`font-medium ${darkMode ? "text-gray-200" : ""}`}>{getCounsellorName(session)}</span>
+                       </div>
+                    </div>
+                    <div className="space-y-1">
+                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Platform</p>
+                       <div className="flex items-center gap-2">
+                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                          <span className={`capitalize ${darkMode ? "text-gray-200" : ""}`}>{session.meetingPreference === 'google_meet' ? 'Google Meet' : session.meetingPreference}</span>
+                       </div>
+                    </div>
+                 </CardContent>
+                 <CardFooter className={`flex justify-end gap-3 pt-3 pb-3 ${darkMode ? "bg-white/5" : "bg-muted/10"}`}>
+                    {session.status === 'pending_assignment' && (
+                       <p className="text-xs text-muted-foreground self-center mr-auto">Waiting for counsellor assignment...</p>
+                    )}
+                    
+                    {session.meetingLink && session.status === 'confirmed' && (
+                       <Button size="sm" className="gap-2 bg-[#2596be] hover:bg-[#1e7ca0] text-white" asChild>
+                          <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">
+                             <Video className="w-4 h-4" /> Join Meeting
+                          </a>
+                       </Button>
+                    )}
+                    
+                    {session.status === 'completed' && !session.cancellationReason && (
+                       <Button size="sm" variant="outline" className="gap-2" onClick={() => {
+                          const cId = getCounsellorId(session);
+                          if (cId) openReviewModal(session._id, cId);
+                       }}>
+                          <Star className="w-4 h-4" /> Rate Session
+                       </Button>
+                    )}
+
+                    {(session.status === 'scheduled' || session.status === 'pending_assignment') && (
+                       <Button 
+                         size="sm" 
+                         variant="destructive" 
+                         onClick={() => handleCancelSession(session._id)}
+                         disabled={!!cancelling}
+                        >
+                         Cancel
+                       </Button>
+                    )}
+                 </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Simple Review Modal Overlay */}
+        {isReviewOpen && (
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className={`rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${darkMode ? "bg-[#071219] border border-white/10" : "bg-background"}`}>
+                 <div className={`p-6 border-b ${darkMode ? "border-white/10" : ""}`}>
+                    <h3 className={`text-lg font-semibold ${darkMode ? "text-white" : ""}`}>Rate your session</h3>
+                    <p className="text-sm text-muted-foreground">How was your experience with the counsellor?</p>
+                 </div>
+                 <div className="p-6 space-y-4">
+                    <div className="flex justify-center gap-2 py-2">
+                       {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                             key={star}
+                             type="button"
+                             onClick={() => setRating(star)}
+                             className={`p-1 transition-colors ${rating >= star ? 'text-yellow-400' : 'text-muted'}`}
+                          >
+                             <Star className={`w-8 h-8 ${rating >= star ? 'fill-yellow-400' : 'fill-none stroke-gray-300'}`} />
+                          </button>
+                       ))}
+                    </div>
+                    <textarea
+                       className={`w-full min-h-[100px] p-3 rounded-md border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#2596be] ${darkMode ? "bg-white/5 border-white/10 text-white placeholder-gray-500" : ""}`}
+                       placeholder="Share your feedback..."
+                       value={reviewText}
+                       onChange={(e) => setReviewText(e.target.value)}
+                    />
+                 </div>
+                 <div className={`p-6 border-t flex justify-end gap-2 ${darkMode ? "bg-white/5 border-white/10" : "bg-muted/20"}`}>
+                    <Button variant="ghost" onClick={() => setIsReviewOpen(false)}>Cancel</Button>
+                    <Button onClick={submitReview} disabled={submittingReview || rating === 0} className="bg-[#2596be] hover:bg-[#1e7ca0] text-white">
+                       {submittingReview && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Submit Review
+                    </Button>
+                 </div>
+              </div>
+           </div>
+        )}
+      </div>
     </div>
   );
 }
