@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { testsService, QuestionData, SectionData, SubmitAnswerItem } from '@/services/tests.service';
+import { testsService, QuestionData, SectionData, SubmitAnswerItem, normalizeQuestionFromAPI } from '@/services/tests.service';
 import { Clock, AlertCircle, Check, Flag, X, Save, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { MathRenderer } from '@/components/MathRenderer';
 
 export default function TestAttemptPage() {
   const params = useParams();
@@ -73,11 +74,7 @@ export default function TestAttemptPage() {
           const allQuestions: QuestionData[] = [];
           startData.sections?.forEach((section: any) => {
             section.questions?.forEach((q: any) => {
-              allQuestions.push({
-                ...q,
-                questionId: q.id || q.questionId,
-                timeSpent: q.timeSpent || 0,
-              });
+              allQuestions.push(normalizeQuestionFromAPI(q));
             });
           });
           
@@ -114,7 +111,7 @@ export default function TestAttemptPage() {
           
           console.log('Resume data loaded:', resumeData); // Debug log
           
-          const questionsData = resumeData.questions || [];
+          const questionsData = (resumeData.questions || []).map((q: any) => normalizeQuestionFromAPI(q));
           console.log('Questions found:', questionsData.length); // Debug log
           
           setQuestions(questionsData);
@@ -556,9 +553,9 @@ export default function TestAttemptPage() {
                 <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </p>
-                <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {currentQuestion.questionText}
-                </h2>
+                <div className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <MathRenderer content={currentQuestion.questionText} />
+                </div>
               </div>
               <div className={`ml-4 px-3 py-1 rounded-lg text-sm font-semibold ${
                 darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
@@ -606,7 +603,7 @@ export default function TestAttemptPage() {
                       }`}>
                         {optionKey}
                       </span>
-                      <span className="flex-1">{option}</span>
+                      <span className="flex-1"><MathRenderer content={option} /></span>
                       {isSelected && <Check className="h-5 w-5 text-[#2596be]" />}
                     </div>
                   </button>

@@ -303,11 +303,12 @@ export default function TestPage() {
             {currentQuestion?.type === 'MCQ_SINGLE' && currentQuestion.options && (
               <div className="space-y-3">
                 {currentQuestion.options.map((option, idx) => {
-                  const isSelected = answers.get(currentQuestion.id)?.selectedOptions?.includes(option.id);
+                  const optionKey = String.fromCharCode(65 + idx);
+                  const isSelected = answers.get(currentQuestion.id)?.selectedOptions?.includes(optionKey);
                   return (
                     <button
-                      key={option.id}
-                      onClick={() => handleAnswer({ selectedOptions: [option.id] })}
+                      key={idx}
+                      onClick={() => handleAnswer({ selectedOptions: [optionKey] })}
                       className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                         isSelected
                           ? darkMode
@@ -333,7 +334,7 @@ export default function TestPage() {
                         <span className={`text-sm font-medium ${
                           darkMode ? 'text-gray-200' : 'text-gray-800'
                         }`}>
-                          {String.fromCharCode(65 + idx)}. {option.text}
+                          {optionKey}. {option}
                         </span>
                       </div>
                     </button>

@@ -324,7 +324,7 @@ export default function TestStartPage() {
               <div className="space-y-2">
                 {testData.userAttempts.slice(0, 3).map((attempt, idx) => (
                   <div key={attempt.attemptId} className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-                    Attempt {idx + 1}: {attempt.percentage.toFixed(1)}% 
+                    Attempt {idx + 1}: {(attempt.percentage ?? 0).toFixed(1)}% 
                     {attempt.rank && ` • Rank: ${attempt.rank}`}
                   </div>
                 ))}

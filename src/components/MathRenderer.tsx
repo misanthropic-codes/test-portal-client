@@ -20,57 +20,99 @@ interface MathRendererProps {
   className?: string;
 }
 
+/**
+ * Renders question content that may contain:
+ * - HTML from TipTap editor (<p>, <strong>, <em>, <ul>, etc.)
+ * - LaTeX math delimiters ($...$ for inline, $$...$$ for display)
+ * - TipTap math-block divs with data-latex attributes
+ */
 export function MathRenderer({ content, className = '' }: MathRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current || !content) return;
 
-    // Clear previous content
-    containerRef.current.innerHTML = '';
+    // Check if the content contains HTML tags
+    const hasHtml = /<[a-z][\s\S]*>/i.test(content);
+    // Check if the content contains LaTeX delimiters
+    const hasLatex = /\$[\s\S]+?\$/.test(content);
 
-    // Split content by LaTeX delimiters
-    const parts = content.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/);
+    if (hasHtml && !hasLatex) {
+      // Pure HTML content from TipTap — render directly
+      containerRef.current.innerHTML = content;
+    } else if (hasLatex) {
+      // Content has LaTeX — parse and render math + HTML segments
+      containerRef.current.innerHTML = '';
+      const parts = content.split(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/);
 
-    parts.forEach((part) => {
-      if (!part) return;
+      parts.forEach((part) => {
+        if (!part) return;
 
-      const span = document.createElement('span');
+        if (part.startsWith('$$') && part.endsWith('$$')) {
+          // Display math (block)
+          const span = document.createElement('span');
+          const math = part.slice(2, -2);
+          try {
+            katex.render(math, span, {
+              displayMode: true,
+              throwOnError: false,
+              output: 'html',
+            });
+          } catch (e) {
+            span.textContent = math;
+            span.className = 'text-red-500';
+          }
+          containerRef.current?.appendChild(span);
+        } else if (part.startsWith('$') && part.endsWith('$')) {
+          // Inline math
+          const span = document.createElement('span');
+          const math = part.slice(1, -1);
+          try {
+            katex.render(math, span, {
+              displayMode: false,
+              throwOnError: false,
+              output: 'html',
+            });
+          } catch (e) {
+            span.textContent = math;
+            span.className = 'text-red-500';
+          }
+          containerRef.current?.appendChild(span);
+        } else {
+          // Non-math segment — may contain HTML, render it
+          const span = document.createElement('span');
+          span.innerHTML = part;
+          containerRef.current?.appendChild(span);
+        }
+      });
+    } else {
+      // Plain text — render as HTML in case it has simple formatting
+      containerRef.current.innerHTML = content;
+    }
 
-      if (part.startsWith('$$') && part.endsWith('$$')) {
-        // Display math (block)
-        const math = part.slice(2, -2);
+    // Process TipTap math-block divs (data-type="math-block" with data-latex)
+    const mathBlocks = containerRef.current.querySelectorAll(
+      'div[data-type="math-block"]'
+    );
+    mathBlocks.forEach((block) => {
+      const latex = block.getAttribute('data-latex');
+      if (latex) {
         try {
-          katex.render(math, span, {
+          const rendered = katex.renderToString(latex, {
+            throwOnError: false,
             displayMode: true,
-            throwOnError: false,
-            output: 'html',
           });
-        } catch (e) {
-          span.textContent = math;
-          span.className = 'text-red-500';
+          block.innerHTML = rendered;
+        } catch (error) {
+          block.innerHTML = `<span class="text-red-500 text-sm">Invalid LaTeX: ${latex}</span>`;
         }
-      } else if (part.startsWith('$') && part.endsWith('$')) {
-        // Inline math
-        const math = part.slice(1, -1);
-        try {
-          katex.render(math, span, {
-            displayMode: false,
-            throwOnError: false,
-            output: 'html',
-          });
-        } catch (e) {
-          span.textContent = math;
-          span.className = 'text-red-500';
-        }
-      } else {
-        // Regular text
-        span.textContent = part;
       }
-
-      containerRef.current?.appendChild(span);
     });
   }, [content]);
 
-  return <div ref={containerRef} className={className} />;
+  if (!content) {
+    return <div className="text-gray-400 text-sm">No content</div>;
+  }
+
+  return <div ref={containerRef} className={`question-content ${className}`} />;
 }

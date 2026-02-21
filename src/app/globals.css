@@ -104,4 +104,73 @@ body {
   background-clip: text;
 }
 
+/* Question content rendered from TipTap HTML */
+.question-content {
+  color: inherit;
+  line-height: 1.7;
+}
 
+.question-content p {
+  margin: 0.25em 0;
+}
+
+.question-content p:first-child {
+  margin-top: 0;
+}
+
+.question-content p:last-child {
+  margin-bottom: 0;
+}
+
+.question-content strong,
+.question-content b {
+  font-weight: 700;
+}
+
+.question-content em,
+.question-content i {
+  font-style: italic;
+}
+
+.question-content ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.question-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.question-content li {
+  margin: 0.15em 0;
+}
+
+.question-content sub {
+  vertical-align: sub;
+  font-size: 0.75em;
+}
+
+.question-content sup {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+.question-content code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.dark .question-content code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.question-content img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.5em 0;
+}

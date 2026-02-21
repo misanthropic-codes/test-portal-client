@@ -242,7 +242,7 @@ export default function AnalyticsPage() {
           }`}>
             <Target className="h-8 w-8 text-[#2596be] mb-2" />
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {analytics.overview.overallAccuracy.toFixed(1)}%
+              {(analytics.overview.overallAccuracy ?? 0).toFixed(1)}%
             </p>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Accuracy
@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
           }`}>
             <TrendingUp className="h-8 w-8 text-[#2596be] mb-2" />
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {analytics.overview.bestScore.toFixed(1)}
+              {(analytics.overview.bestScore ?? 0).toFixed(1)}
             </p>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Best Score
@@ -355,7 +355,7 @@ export default function AnalyticsPage() {
                         </span>
                       </div>
                       <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {subject.accuracy.toFixed(1)}% accuracy
+                        {(subject.accuracy ?? 0).toFixed(1)}% accuracy
                       </span>
                     </div>
                     <div className={`w-full h-3 rounded-full ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`}>
@@ -404,7 +404,7 @@ export default function AnalyticsPage() {
                         {level}
                       </span>
                       <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {data.accuracy.toFixed(1)}% ({data.correct}/{data.attempted})
+                        {(data.accuracy ?? 0).toFixed(1)}% ({data.correct}/{data.attempted})
                       </span>
                     </div>
                     <div className={`w-full h-8 rounded-lg ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`}>
@@ -413,7 +413,7 @@ export default function AnalyticsPage() {
                         style={{ width: `${Math.max(5, data.accuracy)}%` }}
                       >
                         {data.accuracy > 15 && (
-                          <span className="text-xs text-white font-semibold">{data.accuracy.toFixed(1)}%</span>
+                          <span className="text-xs text-white font-semibold">{(data.accuracy ?? 0).toFixed(1)}%</span>
                         )}
                       </div>
                     </div>
@@ -442,7 +442,7 @@ export default function AnalyticsPage() {
                         <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{topic.subject}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold ${getStrengthColor(topic.strength)}`}>{topic.accuracy.toFixed(1)}%</p>
+                        <p className={`font-semibold ${getStrengthColor(topic.strength)}`}>{(topic.accuracy ?? 0).toFixed(1)}%</p>
                         <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                           {topic.correctAnswers}/{topic.questionsAttempted}
                         </p>
@@ -482,7 +482,7 @@ export default function AnalyticsPage() {
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
                 <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {analytics.timeAnalytics.questionsPerMinute.toFixed(2)}
+                  {(analytics.timeAnalytics.questionsPerMinute ?? 0).toFixed(2)}
                 </p>
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Q/min</p>
               </div>

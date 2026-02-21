@@ -279,6 +279,77 @@ export interface QuestionData {
   language?: string;
 }
 
+/**
+ * Normalize a question object from the API into the shape expected by UI components.
+ *
+ * Handles the following mismatches:
+ * - options may arrive as `{ text: string }[]` (from question bank) → flattens to `string[]`
+ * - id may be `_id`, `id`, or `questionId` → sets both `id` and `questionId`
+ * - type may be `questionType` ("single-correct") → maps to `type` ("MCQ_SINGLE")
+ * - image field may be `questionImageBase64` → maps to `questionImage`
+ */
+const QUESTION_TYPE_MAP: Record<string, 'MCQ_SINGLE' | 'MCQ_MULTI' | 'NUMERICAL' | 'INTEGER'> = {
+  'single-correct': 'MCQ_SINGLE',
+  'multiple-correct': 'MCQ_MULTI',
+  'numerical': 'NUMERICAL',
+  'integer': 'INTEGER',
+};
+
+export function normalizeQuestionFromAPI(raw: any): QuestionData {
+  // --- Normalize ID ---
+  const id = raw.id || raw.questionId || raw._id || '';
+
+  // --- Normalize type ---
+  let type = raw.type as QuestionData['type'];
+  if (!type && raw.questionType) {
+    type = QUESTION_TYPE_MAP[raw.questionType] || 'MCQ_SINGLE';
+  }
+
+  // --- Normalize options: { text: string }[] → string[] ---
+  let options: string[] | undefined = undefined;
+  if (Array.isArray(raw.options)) {
+    options = raw.options.map((opt: any) => {
+      if (typeof opt === 'string') return opt;
+      if (opt && typeof opt === 'object' && typeof opt.text === 'string') return opt.text;
+      return String(opt);
+    });
+  }
+
+  // --- Normalize image ---
+  const questionImage = raw.questionImage || raw.questionImageUrl || raw.questionImageBase64 || undefined;
+
+  return {
+    id,
+    questionId: id,
+    questionNumber: raw.questionNumber ?? 0,
+    questionText: raw.questionText || '',
+    type,
+    questionType: raw.questionType,
+    images: raw.images,
+    options,
+    questionImage,
+    questionImageUrl: questionImage,
+    marks: raw.marks ?? 0,
+    negativeMarks: raw.negativeMarks ?? 0,
+    savedAnswer: raw.savedAnswer ?? null,
+    isMarkedForReview: raw.isMarkedForReview ?? false,
+    isAnswered: raw.isAnswered ?? false,
+    timeSpent: raw.timeSpent ?? 0,
+    language: raw.language,
+  };
+}
+
+/** Normalize all questions inside sections returned by the API. */
+function normalizeSections(sections: any[]): any[] {
+  if (!Array.isArray(sections)) return [];
+  return sections.map((section: any) => ({
+    ...section,
+    questions: Array.isArray(section.questions)
+      ? section.questions.map(normalizeQuestionFromAPI)
+      : [],
+  }));
+}
+
 export interface SectionData {
   sectionId: string;
   name: string;
@@ -448,7 +519,12 @@ export const testsService = {
       const response = await apiClient.get<ResumeAttemptResponse>(
         `/attempts/${attemptId}/resume`
       );
-      return response.data;
+      const data = response.data;
+      // Normalize questions in resume response
+      if (data?.data?.questions) {
+        data.data.questions = data.data.questions.map((q: any) => normalizeQuestionFromAPI(q)) as any;
+      }
+      return data;
     } catch (error) {
       console.error('Error resuming attempt:', error);
       throw error;
@@ -462,7 +538,12 @@ export const testsService = {
   startTest: async (testId: string): Promise<StartTestResponse> => {
     try {
       const response = await apiClient.post<StartTestResponse>(`/tests/${testId}/start`);
-      return response.data;
+      const data = response.data;
+      // Normalize questions inside sections so options are string[]
+      if (data?.data?.sections) {
+        data.data.sections = normalizeSections(data.data.sections) as StartTestResponse['data']['sections'];
+      }
+      return data;
     } catch (error) {
       console.error('Error starting test:', error);
       throw error;
@@ -480,7 +561,12 @@ export const testsService = {
         : `/attempts/${attemptId}/questions`;
       
       const response = await apiClient.get<GetQuestionsResponse>(url);
-      return response.data;
+      const data = response.data;
+      // Normalize questions inside sections
+      if (data?.data?.sections) {
+        data.data.sections = normalizeSections(data.data.sections) as SectionData[];
+      }
+      return data;
     } catch (error) {
       console.error('Error fetching test questions:', error);
       throw error;

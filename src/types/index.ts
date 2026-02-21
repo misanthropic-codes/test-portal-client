@@ -168,7 +168,7 @@ export interface Question {
   type: QuestionType;
   questionText: string;
   images?: string[];
-  options?: QuestionOption[];
+  options?: string[];
   marks: number;
   negativeMarks: number;
   isAnswered: boolean;

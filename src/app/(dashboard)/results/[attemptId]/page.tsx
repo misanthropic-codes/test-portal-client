@@ -96,7 +96,8 @@ export default function ResultsPage() {
   }
 
   const data = result.data;
-  const percentageColor = data.percentage >= 75 ? 'text-green-500' : data.percentage >= 50 ? 'text-yellow-500' : 'text-red-500';
+  const pct = data.percentage ?? 0;
+  const percentageColor = pct >= 75 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-red-500';
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'} p-4 sm:p-6 lg:p-8`}>
@@ -118,7 +119,7 @@ export default function ResultsPage() {
         }`}>
           <div className="flex items-center gap-4 mb-6">
             <div className={`p-4 rounded-full ${
-              data.percentage >= 75 ? 'bg-green-500/20' : data.percentage >= 50 ? 'bg-yellow-500/20' : 'bg-red-500/20'
+              pct >= 75 ? 'bg-green-500/20' : pct >= 50 ? 'bg-yellow-500/20' : 'bg-red-500/20'
             }`}>
               <Trophy className={`h-8 w-8 ${percentageColor}`} />
             </div>
@@ -142,7 +143,7 @@ export default function ResultsPage() {
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Percentage</p>
               <p className={`text-2xl font-bold ${percentageColor}`}>
-                {data.percentage.toFixed(1)}%
+                {pct.toFixed(1)}%
               </p>
             </div>
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>

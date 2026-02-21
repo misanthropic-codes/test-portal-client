@@ -383,7 +383,7 @@ function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
         <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-500/10' : 'bg-green-50'}`}>
           <div className="flex items-center justify-between">
             <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Best Score</span>
-            <span className="text-green-500 font-bold">{test.bestPercentage.toFixed(1)}%</span>
+            <span className="text-green-500 font-bold">{(test.bestPercentage ?? 0).toFixed(1)}%</span>
           </div>
           {test.bestRank && (
             <div className="flex items-center justify-between mt-1">
