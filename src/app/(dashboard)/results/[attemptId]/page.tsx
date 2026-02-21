@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { resultsService, AttemptResultResponse, AttemptResultAnswer } from '@/services/results.service';
 import { ArrowLeft, Trophy, Clock, Target, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { MathRenderer } from '@/components/MathRenderer';
 
 export default function ResultsPage() {
   const params = useParams();
@@ -231,9 +232,8 @@ export default function ResultsPage() {
                         {index + 1}
                       </span>
                       <span className={`${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {answer.questionText.length > 60 
-                          ? answer.questionText.substring(0, 60) + '...'
-                          : answer.questionText}
+                        {answer.questionText.replace(/<[^>]+>/g, '').substring(0, 60)}
+                        {answer.questionText.replace(/<[^>]+>/g, '').length > 60 ? '...' : ''}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -258,9 +258,9 @@ export default function ResultsPage() {
                   {/* Expanded Content */}
                   {isExpanded && (
                     <div className={`p-4 border-t ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                      <p className={`mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {answer.questionText}
-                      </p>
+                      <div className={`mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <MathRenderer content={answer.questionText} />
+                      </div>
 
                       {/* Options */}
                       <div className="space-y-2 mb-4">
@@ -284,7 +284,7 @@ export default function ResultsPage() {
                               }`}
                             >
                               <span className="font-bold mr-2">{optionLabel}.</span>
-                              {option}
+                              <MathRenderer content={option} />
                               {isCorrect && <span className="ml-2 text-green-500">✓ Correct</span>}
                               {isSelected && !isCorrect && <span className="ml-2 text-red-500">✗ Your answer</span>}
                             </div>
@@ -300,9 +300,9 @@ export default function ResultsPage() {
                           <p className={`text-sm font-bold mb-2 ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
                             Explanation
                           </p>
-                          <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-                            {answer.explanation}
-                          </p>
+                          <div className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                            <MathRenderer content={answer.explanation} />
+                          </div>
                         </div>
                       )}
 

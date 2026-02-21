@@ -206,6 +206,16 @@ export interface LeaderboardResponse {
   };
 }
 
+/** Normalize options from API: {text: string}[] → string[] */
+function normalizeOptions(options: any[]): string[] {
+  if (!Array.isArray(options)) return [];
+  return options.map((opt: any) => {
+    if (typeof opt === 'string') return opt;
+    if (opt && typeof opt === 'object' && typeof opt.text === 'string') return opt.text;
+    return String(opt);
+  });
+}
+
 export const resultsService = {
   /**
    * Get test result for an attempt
@@ -232,7 +242,15 @@ export const resultsService = {
       const response = await apiClient.get<AttemptResultResponse>(
         `/attempts/${attemptId}/result`
       );
-      return response.data;
+      const data = response.data;
+      // Normalize options in answers from {text}[] to string[]
+      if (data?.data?.answers) {
+        data.data.answers = data.data.answers.map((a: any) => ({
+          ...a,
+          options: normalizeOptions(a.options),
+        }));
+      }
+      return data;
     } catch (error) {
       console.error('Error fetching attempt result:', error);
       throw new Error(handleApiError(error));
@@ -253,7 +271,15 @@ export const resultsService = {
         : `/results/${attemptId}/answer-key`;
 
       const response = await apiClient.get<AnswerKeyResponse>(url);
-      return response.data;
+      const data = response.data;
+      // Normalize options in questions from {text}[] to string[]
+      if (data?.data?.questions) {
+        data.data.questions = data.data.questions.map((q: any) => ({
+          ...q,
+          options: q.options ? normalizeOptions(q.options) : undefined,
+        }));
+      }
+      return data;
     } catch (error) {
       console.error('Error fetching answer key:', error);
       throw new Error(handleApiError(error));
