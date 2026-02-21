@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { testsService, MyTestsResponse, MyTest } from '@/services/tests.service';
-import { Clock, Target, TrendingUp, BookOpen, ChevronRight, Filter, X, Award, Play } from 'lucide-react';
+import { Clock, Target, TrendingUp, BookOpen, ChevronRight, Filter, X, Award, Play, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function MyTestsPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const [data, setData] = useState<MyTestsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function MyTestsPage() {
     if (test.isAttempted || test.attemptCount > 0) {
       setSelectedTest(test);
     } else {
-      router.push(`/tests/${test.id}/start`);
+      router.push(`/tests/${test.id}`);
     }
   };
 
@@ -129,8 +130,63 @@ export default function MyTestsPage() {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'} p-4 sm:p-6 lg:p-8`}>
-      <div className="max-w-7xl mx-auto">
+    <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'}`}>
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b backdrop-blur-xl" style={{
+        backgroundColor: darkMode ? 'rgba(10, 15, 20, 0.58)' : 'rgba(255, 255, 255, 0.55)',
+        borderColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'
+      }}>
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/dashboard" className={`font-bold text-lg sm:text-xl ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+              Test Portal
+            </Link>
+            <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm">
+              <Link href="/dashboard" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
+                Dashboard
+              </Link>
+              <Link href="/my-tests" className={`font-medium transition-colors ${darkMode ? 'text-white' : 'text-[#2596be]'}`}>
+                Tests
+              </Link>
+              <Link href="/analytics" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
+                Analytics
+              </Link>
+              <Link href="/history" className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#2596be]'}`}>
+                History
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => {
+                const html = document.documentElement;
+                html.classList.toggle('dark');
+                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+              }}
+              className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? (
+                <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            <Link href="/profile" className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
+              <User className="h-5 w-5" />
+            </Link>
+            <button onClick={logout} className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </header>
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className={`text-3xl sm:text-4xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -389,7 +445,7 @@ export default function MyTestsPage() {
               </button>
               
               <button
-                onClick={() => router.push(`/tests/${selectedTest.id}/start`)}
+                onClick={() => router.push(`/tests/${selectedTest.id}`)}
                 disabled={actionLoading}
                 className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold transition-all ${
                   darkMode

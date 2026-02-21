@@ -83,7 +83,7 @@ export default function TestsPage() {
     if (test.isAttempted || test.attemptCount > 0) {
       setSelectedTest(test);
     } else {
-      router.push(`/tests/${test.id}/start`);
+      router.push(`/tests/${test.id}`);
     }
   };
 
