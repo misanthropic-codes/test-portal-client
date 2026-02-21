@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import testsService, { MyTestsResponse, MyTest, TestCategory } from '@/services/tests.service';
 import Link from 'next/link';
-import { Search, User, LogOut, FileText, Clock, Target, Award, TrendingUp, BookOpen, CheckCircle } from 'lucide-react';
+import { Search, User, LogOut, FileText, Clock, Target, Award, TrendingUp, BookOpen, CheckCircle, X, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function TestsPage() {
   const { logout } = useAuth();
@@ -15,6 +16,9 @@ export default function TestsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [darkMode, setDarkMode] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<MyTest | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -74,6 +78,36 @@ export default function TestsPage() {
 
     setFilteredTests(filtered);
   }, [searchQuery, selectedCategory, testsData]);
+
+  const handleTestClick = (test: MyTest) => {
+    if (test.isAttempted || test.attemptCount > 0) {
+      setSelectedTest(test);
+    } else {
+      router.push(`/tests/${test.id}/start`);
+    }
+  };
+
+  const handleViewResults = async () => {
+    if (!selectedTest) return;
+    try {
+      setActionLoading(true);
+      const response = await testsService.getTestDetails(selectedTest.id);
+      const attempts = response.data.userAttempts;
+      if (attempts && attempts.length > 0) {
+        const latestAttempt = attempts.sort((a, b) => 
+          new Date(b.attemptedAt).getTime() - new Date(a.attemptedAt).getTime()
+        )[0];
+        router.push(`/results/${latestAttempt.attemptId}`);
+      } else {
+        alert('No attempt records found.');
+        setActionLoading(false);
+      }
+    } catch (err) {
+      console.error('Failed to fetch test details', err);
+      alert('Failed to load results. Please try again.');
+      setActionLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -304,17 +338,83 @@ export default function TestsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredTests.map((test) => (
-              <TestCard key={test.testId} test={test} darkMode={darkMode} />
+              <TestCard 
+                key={test.id} 
+                test={test} 
+                darkMode={darkMode} 
+                onClick={() => handleTestClick(test)} 
+              />
             ))}
           </div>
         )}
       </main>
+
+      {/* Test Action Modal */}
+      {selectedTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-md p-6 rounded-2xl shadow-xl ${
+            darkMode ? 'bg-[#0f172a] border border-white/10' : 'bg-white border border-gray-200'
+          }`}>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Test Already Attempted
+              </h3>
+              <button
+                onClick={() => !actionLoading && setSelectedTest(null)}
+                className={`p-1 rounded-lg transition-colors ${
+                  darkMode ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className={`text-sm mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              You have already taken <strong>{selectedTest.title}</strong> previously. You can view your latest results or start a new attempt.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleViewResults}
+                disabled={actionLoading}
+                className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                }`}
+              >
+                {actionLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                ) : (
+                  <>
+                    <Award className="w-5 h-5" />
+                    View Results
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => router.push(`/tests/${selectedTest.id}`)}
+                disabled={actionLoading}
+                className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-[#2596be] text-white hover:bg-[#1e7ca0]'
+                    : 'bg-[#2596be] text-white hover:bg-[#1e7ca0]'
+                }`}
+              >
+                <Play className="w-5 h-5" />
+                Start New Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Test Card Component
-function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
+function TestCard({ test, darkMode, onClick }: { test: MyTest; darkMode: boolean; onClick: () => void }) {
   const getProgressColor = (progress: string) => {
     switch (progress) {
       case 'completed': return 'text-green-500 bg-green-500/10';
@@ -332,9 +432,9 @@ function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
   };
 
   return (
-    <Link
-      href={`/tests/${test.testId}`}
-      className={`block p-5 rounded-2xl border transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
+    <div
+      onClick={onClick}
+      className={`block p-5 rounded-2xl border cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${
         darkMode 
           ? 'bg-white/5 border-white/10 hover:border-[#2596be]/50' 
           : 'bg-white border-gray-200 hover:border-[#2596be]'
@@ -345,7 +445,7 @@ function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
         <span className={`px-2 py-1 rounded-md text-xs font-medium ${
           darkMode ? 'bg-[#2596be]/20 text-[#60DFFF]' : 'bg-[#2596be]/10 text-[#2596be]'
         }`}>
-          {test.category}
+          {test.examType || test.category}
         </span>
         <span className={`px-2 py-1 rounded-md text-xs font-medium ${getProgressColor(test.progress)}`}>
           {getProgressText(test.progress)}
@@ -373,13 +473,13 @@ function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
         <div className={`text-center p-2 rounded-lg ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
           <Award className={`w-4 h-4 mx-auto mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
           <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {test.attemptsCount > 0 ? `${test.attemptsCount} attempts` : 'No attempts'}
+            {test.attemptCount > 0 ? `${test.attemptCount} attempts` : 'No attempts'}
           </p>
         </div>
       </div>
 
       {/* Best Score (if attempted) */}
-      {test.hasAttempted && test.bestPercentage !== undefined && (
+      {test.isAttempted && test.bestPercentage !== undefined && (
         <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-500/10' : 'bg-green-50'}`}>
           <div className="flex items-center justify-between">
             <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Best Score</span>
@@ -400,6 +500,6 @@ function TestCard({ test, darkMode }: { test: MyTest; darkMode: boolean }) {
           From: {test.packageName}
         </p>
       )}
-    </Link>
+    </div>
   );
 }

@@ -323,9 +323,17 @@ export default function TestStartPage() {
               </p>
               <div className="space-y-2">
                 {testData.userAttempts.slice(0, 3).map((attempt, idx) => (
-                  <div key={attempt.attemptId} className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-                    Attempt {idx + 1}: {(attempt.percentage ?? 0).toFixed(1)}% 
-                    {attempt.rank && ` • Rank: ${attempt.rank}`}
+                  <div key={attempt.attemptId} className={`flex items-center justify-between text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                    <div>
+                      Attempt {idx + 1}: {(attempt.percentage ?? 0).toFixed(1)}% 
+                      {attempt.rank && ` • Rank: ${attempt.rank}`}
+                    </div>
+                    <button 
+                      onClick={() => router.push(`/results/${attempt.attemptId}`)}
+                      className="text-xs font-semibold underline hover:text-blue-500 transition-colors"
+                    >
+                      View Results
+                    </button>
                   </div>
                 ))}
               </div>

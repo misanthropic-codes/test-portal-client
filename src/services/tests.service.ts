@@ -19,32 +19,45 @@ export interface MyTestsStats {
 }
 
 export interface MyTest {
-  testId: string;
+  id: string;
   title: string;
   description: string;
-  category: string;
-  type: string;
+  examType: string;
+  testType: string;
+  difficulty?: string;
+  subjects?: string[];
   duration: number;
   totalMarks: number;
-  marksPerQuestion: number;
-  negativeMarking: number;
+  totalQuestions?: number;
+  thumbnail?: string;
+  status: string;
   isPaid: boolean;
   price?: number;
   packageName?: string;
   source: 'purchased' | 'assigned';
-  startDate?: string;
-  endDate?: string;
-  status: 'active' | 'inactive' | 'upcoming';
-  hasAttempted: boolean;
-  attemptsCount: number;
+  attemptCount: number;
+  isAttempted: boolean;
   lastAttemptDate?: string;
   lastScore?: number;
   lastPercentage?: number;
-  lastRank?: number;
   bestScore?: number;
   bestPercentage?: number;
-  bestRank?: number;
   progress: 'completed' | 'in-progress' | 'not-started';
+  createdAt?: string;
+
+  // Retaining backwards compatibility for old usages
+  testId?: string;
+  category?: string;
+  type?: string;
+  marksPerQuestion?: number;
+  negativeMarking?: number;
+  startDate?: string;
+  endDate?: string;
+  lastRank?: number;
+  bestRank?: number;
+  hasAttempted?: boolean;
+  attemptsCount?: number;
+  sections?: any[];
 }
 
 export interface TestCategory {

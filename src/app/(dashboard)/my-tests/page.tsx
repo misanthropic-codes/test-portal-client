@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { testsService, MyTestsResponse, MyTest } from '@/services/tests.service';
-import { Clock, Target, TrendingUp, BookOpen, ChevronRight, Filter } from 'lucide-react';
+import { Clock, Target, TrendingUp, BookOpen, ChevronRight, Filter, X, Award, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function MyTestsPage() {
@@ -15,6 +15,8 @@ export default function MyTestsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [darkMode, setDarkMode] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<MyTest | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -49,8 +51,37 @@ export default function MyTestsPage() {
     fetchMyTests();
   }, [isAuthenticated, router]);
 
-  const handleTestClick = (testId: string) => {
-    router.push(`/tests/${testId}/start`);
+  const handleTestClick = (test: MyTest) => {
+    if (test.isAttempted || test.attemptCount > 0) {
+      setSelectedTest(test);
+    } else {
+      router.push(`/tests/${test.id}/start`);
+    }
+  };
+
+  const handleViewResults = async () => {
+    if (!selectedTest) return;
+    try {
+      setActionLoading(true);
+      // Fetch details to get the latest attemptId
+      const response = await testsService.getTestDetails(selectedTest.id);
+      const attempts = response.data.userAttempts;
+      if (attempts && attempts.length > 0) {
+        // Assume the first one is the most recent (or sort by date)
+        const latestAttempt = attempts.sort((a, b) => 
+          new Date(b.attemptedAt).getTime() - new Date(a.attemptedAt).getTime()
+        )[0];
+        router.push(`/results/${latestAttempt.attemptId}`);
+      } else {
+        // Fallback if no attempts found despite isAttempted being true
+        alert('No attempt records found.');
+        setActionLoading(false);
+      }
+    } catch (err) {
+      console.error('Failed to fetch test details', err);
+      alert('Failed to load results. Please try again.');
+      setActionLoading(false);
+    }
   };
 
   const getProgressColor = (progress: string) => {
@@ -230,8 +261,8 @@ export default function MyTestsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filteredTestsList.map((test) => (
                   <div
-                    key={test.testId}
-                    onClick={() => handleTestClick(test.testId)}
+                    key={test.id}
+                    onClick={() => handleTestClick(test)}
                     className={`p-6 rounded-2xl border backdrop-blur-2xl cursor-pointer transition-all hover:scale-[1.02] ${
                       darkMode
                         ? 'bg-white/5 border-white/10 hover:bg-white/10'
@@ -280,7 +311,7 @@ export default function MyTestsPage() {
                       <div>
                         <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Attempts</p>
                         <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {test.attemptsCount}
+                          {test.attemptCount}
                         </p>
                       </div>
                     </div>
@@ -312,6 +343,67 @@ export default function MyTestsPage() {
           </div>
         )}
       </div>
+
+      {/* Test Action Modal */}
+      {selectedTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-md p-6 rounded-2xl shadow-xl ${
+            darkMode ? 'bg-[#0f172a] border border-white/10' : 'bg-white border border-gray-200'
+          }`}>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Test Already Attempted
+              </h3>
+              <button
+                onClick={() => !actionLoading && setSelectedTest(null)}
+                className={`p-1 rounded-lg transition-colors ${
+                  darkMode ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className={`text-sm mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              You have already taken <strong>{selectedTest.title}</strong> previously. You can view your latest results or start a new attempt.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleViewResults}
+                disabled={actionLoading}
+                className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                }`}
+              >
+                {actionLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                ) : (
+                  <>
+                    <Award className="w-5 h-5" />
+                    View Results
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => router.push(`/tests/${selectedTest.id}/start`)}
+                disabled={actionLoading}
+                className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-[#2596be] text-white hover:bg-[#1e7ca0]'
+                    : 'bg-[#2596be] text-white hover:bg-[#1e7ca0]'
+                }`}
+              >
+                <Play className="w-5 h-5" />
+                Start New Test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

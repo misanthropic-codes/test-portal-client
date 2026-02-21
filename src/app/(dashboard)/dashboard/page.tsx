@@ -122,7 +122,7 @@ export default function DashboardPage() {
                 Dashboard
               </Link>
               <Link
-                href="/tests"
+                href="/my-tests"
                 className={`transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-[#2596be]"}`}
               >
                 Tests
