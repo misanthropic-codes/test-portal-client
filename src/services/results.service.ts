@@ -137,40 +137,62 @@ export interface TestResultResponse {
   };
 }
 
+export interface AnswerKeyOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  imageUrl?: string;
+}
+
 export interface AnswerKeyQuestion {
-  questionNumber: number;
   questionId: string;
+  questionNumber: number;
   questionText: string;
-  questionType: string;
-  options?: string[];
-  questionImage?: string;
-  correctAnswer: string;
-  yourAnswer: string;
+  type: string;
+  options: AnswerKeyOption[];
+  questionImageUrl?: string;
+  correctAnswer: {
+    selectedOptions: string[];
+    numericalAnswer?: number | null;
+  } | null;
+  yourAnswer: {
+    selectedOptions: string[];
+    numericalAnswer?: number | null;
+  } | null;
   isCorrect: boolean;
   marks: number;
   marksObtained: number;
+  difficulty: string;
   solutionText?: string;
-  solutionImage?: string;
-  chapter?: string;
-  topic?: string;
-  difficulty?: string;
+  solutionImageUrl?: string;
   timeSpent: number;
+  tags?: string[];
+}
+
+export interface AnswerKeySection {
+  sectionId: string;
+  sectionName: string;
+  questions: AnswerKeyQuestion[];
 }
 
 export interface AnswerKeyResponse {
   success: boolean;
-  message: string;
+  message?: string;
   data: {
     attemptId: string;
-    testTitle: string;
-    questions: AnswerKeyQuestion[];
-    summary: {
+    testTitle?: string;
+    testCategory?: string;
+    testType?: string;
+    sections: AnswerKeySection[];
+    summary?: {
       totalQuestions: number;
       correctAnswers: number;
       incorrectAnswers: number;
       unanswered: number;
       marksObtained: number;
       totalMarks: number;
+      timeTaken?: number;
+      percentage?: number;
     };
   };
 }
@@ -271,15 +293,7 @@ export const resultsService = {
         : `/results/${attemptId}/answer-key`;
 
       const response = await apiClient.get<AnswerKeyResponse>(url);
-      const data = response.data;
-      // Normalize options in questions from {text}[] to string[]
-      if (data?.data?.questions) {
-        data.data.questions = data.data.questions.map((q: any) => ({
-          ...q,
-          options: q.options ? normalizeOptions(q.options) : undefined,
-        }));
-      }
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error fetching answer key:', error);
       throw new Error(handleApiError(error));

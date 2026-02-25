@@ -191,7 +191,7 @@ export default function PackageDetailsPage() {
               {packageData.tests.map((test, idx) => (
                 <div
                   key={test._id}
-                  onClick={() => router.push(`/tests/${test._id}/start`)}
+                  onClick={() => router.push(`/tests/${test._id}`)}
                   className={`p-6 rounded-2xl border backdrop-blur-2xl cursor-pointer transition-all hover:scale-[1.01] ${
                     darkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-gray-200 hover:shadow-lg'
                   }`}
