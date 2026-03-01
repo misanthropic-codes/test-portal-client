@@ -207,6 +207,15 @@ export interface ResumeAttemptResponse {
       marksPerQuestion: number;
       negativeMarking: number;
     };
+    /** Questions grouped by subject section (new exam-pattern format) */
+    sections?: Array<{
+      sectionId: string;
+      name: string;
+      subject: string;
+      duration: number;
+      questions: QuestionData[];
+    }>;
+    /** Flat question list for backward compatibility */
     questions: Array<{
       questionId: string;
       questionNumber: number;
@@ -533,7 +542,11 @@ export const testsService = {
         `/attempts/${attemptId}/resume`
       );
       const data = response.data;
-      // Normalize questions in resume response
+      // Normalize sections (new exam-pattern format)
+      if (data?.data?.sections) {
+        data.data.sections = normalizeSections(data.data.sections) as ResumeAttemptResponse['data']['sections'];
+      }
+      // Normalize flat questions (backward compat)
       if (data?.data?.questions) {
         data.data.questions = data.data.questions.map((q: any) => normalizeQuestionFromAPI(q)) as any;
       }
@@ -594,12 +607,13 @@ export const testsService = {
     attemptId: string,
     questionId: string,
     answer: string,
-    timeSpent: number
+    timeSpent: number,
+    sectionId?: string
   ): Promise<SaveAnswerResponse> => {
     try {
       const response = await apiClient.post<SaveAnswerResponse>(
         `/attempts/${attemptId}/answer`,
-        { questionId, answer, timeSpent }
+        { questionId, answer, timeSpent, ...(sectionId ? { sectionId } : {}) }
       );
       return response.data;
     } catch (error) {

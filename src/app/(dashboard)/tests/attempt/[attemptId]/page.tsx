@@ -14,7 +14,8 @@ export default function TestAttemptPage() {
   const attemptId = params.attemptId as string;
 
   const [loading, setLoading] = useState(true);
-  const [questions, setQuestions] = useState<QuestionData[]>([]);
+  const [questions, setQuestions] = useState<(QuestionData & { sectionId?: string; sectionName?: string })[]>([]);
+  const [sections, setSections] = useState<SectionData[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [endTime, setEndTime] = useState<string>('');
   const [testTitle, setTestTitle] = useState('');
@@ -71,13 +72,18 @@ export default function TestAttemptPage() {
           console.log('Start data loaded:', startData);
           
           // Flatten questions from all sections
-          const allQuestions: QuestionData[] = [];
+          const allQuestions: (QuestionData & { sectionId?: string; sectionName?: string })[] = [];
           startData.sections?.forEach((section: any) => {
             section.questions?.forEach((q: any) => {
-              allQuestions.push(normalizeQuestionFromAPI(q));
+              allQuestions.push({
+                ...normalizeQuestionFromAPI(q),
+                sectionId: section.sectionId,
+                sectionName: section.name
+              });
             });
           });
           
+          setSections(startData.sections || []);
           console.log('Questions loaded from start:', allQuestions.length);
           
           setQuestions(allQuestions);
@@ -111,10 +117,26 @@ export default function TestAttemptPage() {
           
           console.log('Resume data loaded:', resumeData); // Debug log
           
-          const questionsData = (resumeData.questions || []).map((q: any) => normalizeQuestionFromAPI(q));
-          console.log('Questions found:', questionsData.length); // Debug log
+          let allQuestions: (QuestionData & { sectionId?: string; sectionName?: string })[] = [];
           
-          setQuestions(questionsData);
+          if (resumeData.sections) {
+            setSections(resumeData.sections);
+            resumeData.sections.forEach((section: any) => {
+              section.questions?.forEach((q: any) => {
+                allQuestions.push({
+                  ...normalizeQuestionFromAPI(q),
+                  sectionId: section.sectionId, // Can be section.sectionId or section.id depending on API
+                  sectionName: section.name
+                });
+              });
+            });
+          } else {
+            allQuestions = (resumeData.questions || []).map((q: any) => normalizeQuestionFromAPI(q));
+          }
+          
+          console.log('Questions found:', allQuestions.length); // Debug log
+          
+          setQuestions(allQuestions);
           setTestTitle(resumeData.test?.title || 'Test');
           setEndTime(resumeData.endTime || '');
           setRemainingSeconds(resumeData.remainingTime || 0);
@@ -123,12 +145,13 @@ export default function TestAttemptPage() {
           const initialAnswers = new Map<string, string>();
           const initialMarked = new Set<string>();
           
-          questionsData.forEach((q: any) => {
+          allQuestions.forEach((q: any) => {
+            const qId = q.id || q.questionId || '';
             if (q.savedAnswer) {
-              initialAnswers.set(q.questionId, q.savedAnswer);
+              initialAnswers.set(qId, q.savedAnswer);
             }
             if (q.isMarkedForReview) {
-              initialMarked.add(q.questionId);
+              initialMarked.add(qId);
             }
           });
 
@@ -143,18 +166,21 @@ export default function TestAttemptPage() {
           }
           
           // Flatten questions from all sections and normalize field names
-          const allQuestions: QuestionData[] = [];
-          response.data.sections?.forEach(section => {
-            section.questions.forEach(q => {
-              allQuestions.push({
-                ...q,
-                // Normalize to use questionId consistently
-                questionId: q.id || q.questionId,
-                // Normalize question type if needed
-                timeSpent: q.timeSpent || 0,
+          const allQuestions: (QuestionData & { sectionId?: string; sectionName?: string })[] = [];
+          if (response.data.sections) {
+            setSections(response.data.sections);
+            response.data.sections.forEach(section => {
+              section.questions.forEach(q => {
+                allQuestions.push({
+                  ...q,
+                  questionId: q.id || q.questionId,
+                  timeSpent: q.timeSpent || 0,
+                  sectionId: section.sectionId,
+                  sectionName: section.name
+                });
               });
             });
-          });
+          }
           
           console.log('Questions loaded from API:', allQuestions.length);
           setQuestions(allQuestions);
@@ -232,7 +258,7 @@ export default function TestAttemptPage() {
           const qId = getQuestionId(q);
           return {
             questionId: qId,
-            sectionId: 'default',
+            sectionId: q.sectionId || 'default',
             answer: { selectedOptions: [answers.get(qId)!] },
             timeSpent: q.timeSpent || 0
           };
@@ -286,7 +312,7 @@ export default function TestAttemptPage() {
         const qId = getQuestionId(q);
         return {
           questionId: qId,
-          sectionId: 'default',
+          sectionId: q.sectionId || 'default',
           answer: { selectedOptions: [answers.get(qId)!] },
           timeSpent: q.timeSpent || 0
         };
@@ -329,7 +355,7 @@ export default function TestAttemptPage() {
     // Track for auto-save
     const answerItem: SubmitAnswerItem = {
       questionId: qId,
-      sectionId: 'default',
+      sectionId: currentQuestion.sectionId || 'default',
       answer: { selectedOptions: [answer] },
       timeSpent: currentQuestion.timeSpent || 0
     };
@@ -388,7 +414,7 @@ export default function TestAttemptPage() {
           
           return {
             questionId: qId,
-            sectionId: 'default', // Default section ID
+            sectionId: q.sectionId || 'default',
             answer: {
               selectedOptions: [selectedAnswer] // For single-correct questions
             },
@@ -547,6 +573,33 @@ export default function TestAttemptPage() {
           <div className={`max-w-4xl mx-auto p-6 rounded-2xl border ${
             darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
           }`}>
+            {/* Section Tabs */}
+            {sections.length > 0 && (
+              <div className={`flex items-center gap-2 mb-6 overflow-x-auto pb-4 border-b ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                {sections.map((section: any) => {
+                  const isActive = currentQuestion?.sectionId === (section.sectionId || section.id);
+                  const firstIdx = questions.findIndex(q => q.sectionId === (section.sectionId || section.id));
+                  return (
+                    <button
+                      key={section.sectionId || section.id}
+                      onClick={() => {
+                        if (firstIdx !== -1) setCurrentQuestionIndex(firstIdx);
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
+                        isActive 
+                          ? 'bg-[#2596be] text-white' 
+                          : darkMode 
+                            ? 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                      }`}
+                    >
+                      {section.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Question Header */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
@@ -682,25 +735,61 @@ export default function TestAttemptPage() {
           </div>
 
           {/* Question Grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {questions.map((q, idx) => {
-              const status = getQuestionStatus(q);
-              const isCurrent = idx === currentQuestionIndex;
-              
-              return (
-               <button
-                  key={getQuestionId(q)}
-                  onClick={() => setCurrentQuestionIndex(idx)}
-                  className={`w-10 h-10 rounded border-2 font-semibold transition-all ${
-                    isCurrent 
-                      ? 'ring-2 ring-[#2596be] scale-110' 
-                      : ''
-                  } ${getQuestionStatusColor(status)}`}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
+          <div className="space-y-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+            {sections.length > 0 ? (
+              sections.map((section: any) => (
+                <div key={section.sectionId || section.id} className="space-y-3">
+                  <h4 className={`text-sm font-semibold px-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {section.name}
+                  </h4>
+                  <div className="grid grid-cols-5 gap-2">
+                    {section.questions.map((sq: any) => {
+                      const sqId = sq.id || sq.questionId;
+                      const globalIdx = questions.findIndex(q => getQuestionId(q) === sqId);
+                      if (globalIdx === -1) return null;
+                      const q = questions[globalIdx];
+                      const status = getQuestionStatus(q);
+                      const isCurrent = globalIdx === currentQuestionIndex;
+                      
+                      return (
+                        <button
+                          key={getQuestionId(q)}
+                          onClick={() => setCurrentQuestionIndex(globalIdx)}
+                          className={`w-10 h-10 rounded border-2 font-semibold transition-all flex items-center justify-center ${
+                            isCurrent 
+                              ? 'ring-2 ring-[#2596be] scale-110' 
+                              : ''
+                          } ${getQuestionStatusColor(status)}`}
+                        >
+                          {globalIdx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="grid grid-cols-5 gap-2">
+                {questions.map((q, idx) => {
+                  const status = getQuestionStatus(q);
+                  const isCurrent = idx === currentQuestionIndex;
+                  
+                  return (
+                   <button
+                      key={getQuestionId(q)}
+                      onClick={() => setCurrentQuestionIndex(idx)}
+                      className={`w-10 h-10 rounded border-2 font-semibold transition-all flex items-center justify-center ${
+                        isCurrent 
+                          ? 'ring-2 ring-[#2596be] scale-110' 
+                          : ''
+                      } ${getQuestionStatusColor(status)}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
