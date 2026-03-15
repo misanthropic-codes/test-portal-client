@@ -5,7 +5,7 @@ import testsService, { MyTestsResponse, MyTest, TestCategory } from '@/services/
 import Link from 'next/link';
 import { Search, User, LogOut, FileText, Clock, Target, Award, TrendingUp, BookOpen, CheckCircle, X, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function TestsPage() {
   const { logout } = useAuth();
@@ -19,6 +19,9 @@ export default function TestsPage() {
   const [selectedTest, setSelectedTest] = useState<MyTest | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const packageIdParam = searchParams.get('packageId');
+  const categoryParam = searchParams.get('category');
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -39,7 +42,9 @@ export default function TestsPage() {
       try {
         setLoading(true);
         setError('');
-        const data = await testsService.getMyTests();
+        const data = packageIdParam 
+          ? await testsService.getTestsByPackage(packageIdParam)
+          : await testsService.getMyTests();
         setTestsData(data);
         
         // Flatten all tests from categories
@@ -54,7 +59,22 @@ export default function TestsPage() {
     };
 
     loadTests();
-  }, []);
+  }, [packageIdParam]);
+
+  useEffect(() => {
+    if (categoryParam && testsData) {
+      // Try to find a match in the actual category names (case-insensitive)
+      const normalizedParam = categoryParam.toLowerCase().replace(/[-_]/g, ' ');
+      const match = testsData.categories.find(cat => 
+        cat.category.toLowerCase().includes(normalizedParam) || 
+        normalizedParam.includes(cat.category.toLowerCase())
+      );
+      
+      if (match) {
+        setSelectedCategory(match.category);
+      }
+    }
+  }, [categoryParam, testsData]);
 
   useEffect(() => {
     if (!testsData) return;

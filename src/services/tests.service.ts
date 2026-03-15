@@ -154,7 +154,7 @@ export interface AttemptTestInfo {
 export interface AttemptHistoryItem {
   attemptId: string;
   test: AttemptTestInfo;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED' | 'SUBMITTED' | 'AUTO_SUBMITTED';
   score: number;
   timeTaken: number;
   startTime: string;

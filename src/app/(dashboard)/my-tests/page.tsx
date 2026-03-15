@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { testsService, MyTestsResponse, MyTest } from '@/services/tests.service';
 import { Clock, Target, TrendingUp, BookOpen, ChevronRight, Filter, X, Award, Play, User, LogOut } from 'lucide-react';
@@ -18,6 +18,9 @@ export default function MyTestsPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [selectedTest, setSelectedTest] = useState<MyTest | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const packageIdParam = searchParams.get('packageId');
+  const categoryParam = searchParams.get('category');
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -40,7 +43,9 @@ export default function MyTestsPage() {
     const fetchMyTests = async () => {
       try {
         setLoading(true);
-        const response = await testsService.getMyTests();
+        const response = packageIdParam
+          ? await testsService.getTestsByPackage(packageIdParam)
+          : await testsService.getMyTests();
         setData(response);
       } catch (err: any) {
         setError(err.message || 'Failed to load tests');
@@ -50,7 +55,22 @@ export default function MyTestsPage() {
     };
 
     fetchMyTests();
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, packageIdParam]);
+
+  useEffect(() => {
+    if (categoryParam && data) {
+      // Try to find a match in the actual category names (case-insensitive)
+      const normalizedParam = categoryParam.toLowerCase().replace(/[-_]/g, ' ');
+      const match = data.categories.find(cat => 
+        cat.category.toLowerCase().includes(normalizedParam) || 
+        normalizedParam.includes(cat.category.toLowerCase())
+      );
+      
+      if (match) {
+        setSelectedCategory(match.category);
+      }
+    }
+  }, [categoryParam, data]);
 
   const handleTestClick = (test: MyTest) => {
     if (test.isAttempted || test.attemptCount > 0) {

@@ -148,7 +148,7 @@ export default function HistoryPage() {
                         {attempt.test.totalMarks} marks
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        attempt.status === 'COMPLETED' 
+                        attempt.status === 'COMPLETED' || attempt.status === 'SUBMITTED' || attempt.status === 'AUTO_SUBMITTED'
                           ? 'bg-green-500/20 text-green-500' 
                           : attempt.status === 'IN_PROGRESS' 
                             ? 'bg-yellow-500/20 text-yellow-500' 
@@ -168,7 +168,7 @@ export default function HistoryPage() {
                         {attempt.score}
                       </p>
                     </div>
-                    {attempt.status === 'COMPLETED' ? (
+                    {attempt.status === 'COMPLETED' || attempt.status === 'SUBMITTED' || attempt.status === 'AUTO_SUBMITTED' ? (
                       <button
                         onClick={() => router.push(`/results/${attempt.attemptId}`)}
                         className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium"

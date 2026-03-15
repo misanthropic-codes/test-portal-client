@@ -86,7 +86,8 @@ export default function ResultsPage() {
     return `${mins}m ${secs}s`;
   };
 
-  const getOptionLabel = (optionId: string) => {
+  const getOptionLabel = (optionId?: string) => {
+    if (!optionId) return '?';
     return optionId.toUpperCase();
   };
 
