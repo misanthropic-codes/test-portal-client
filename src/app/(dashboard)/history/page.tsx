@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { mockTests } from '@/services/mock/mockData';
-import { Test } from '@/types';
-import { ArrowLeft, Clock, Award, Calendar, TrendingUp, FileText } from 'lucide-react';
+import { testsService, AttemptHistoryItem } from '@/services/tests.service';
+import { ArrowLeft, Clock, Award, Calendar, TrendingUp, FileText, Loader2 } from 'lucide-react';
 
 export default function HistoryPage() {
   const router = useRouter();
   const [darkMode, setDarkMode] = useState(false);
-  const [attemptedTests, setAttemptedTests] = useState<Test[]>([]);
+  const [attempts, setAttempts] = useState<AttemptHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -24,9 +25,22 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    // Get tests that user has attempted
-    const attempted = mockTests.filter(t => t.isAttempted);
-    setAttemptedTests(attempted);
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const response = await testsService.getAttemptHistory();
+        if (response.success && response.data) {
+          setAttempts(response.data.attempts);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch history:', err);
+        setError(err.message || 'Failed to load test history');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
   }, []);
 
   return (
@@ -69,7 +83,28 @@ export default function HistoryPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        {attemptedTests.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="h-10 w-10 text-[#2596be] animate-spin mb-4" />
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Loading your history...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <XCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+            <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Oops! Something went wrong
+            </h2>
+            <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : attempts.length === 0 ? (
           <div className="text-center py-12">
             <FileText className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
             <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -87,9 +122,9 @@ export default function HistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {attemptedTests.map((test) => (
+            {attempts.map((attempt) => (
               <div
-                key={test.id}
+                key={attempt.attemptId}
                 className={`p-6 rounded-2xl border backdrop-blur-2xl hover:scale-[1.01] transition-all ${
                   darkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/90 border-gray-200 hover:bg-white'
                 }`}
@@ -97,52 +132,60 @@ export default function HistoryPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex-1">
                     <h3 className={`text-lg font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {test.title}
+                      {attempt.test.title}
                     </h3>
                     <div className="flex flex-wrap gap-3 text-sm">
                       <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         <Calendar className="h-4 w-4" />
-                        {test.userAttempts && test.userAttempts.length > 0
-                          ? new Date(test.userAttempts[0].completedAt).toLocaleDateString()
-                          : 'Recently'}
+                        {new Date(attempt.startTime).toLocaleDateString()}
                       </span>
                       <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         <Clock className="h-4 w-4" />
-                        {test.duration} minutes
+                        {attempt.test.duration} minutes
                       </span>
                       <span className={`flex items-center gap-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         <FileText className="h-4 w-4" />
-                        {test.totalQuestions} questions
+                        {attempt.test.totalMarks} marks
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        attempt.status === 'COMPLETED' 
+                          ? 'bg-green-500/20 text-green-500' 
+                          : attempt.status === 'IN_PROGRESS' 
+                            ? 'bg-yellow-500/20 text-yellow-500' 
+                            : 'bg-red-500/20 text-red-500'
+                      }`}>
+                        {attempt.status.replace('_', ' ')}
                       </span>
                     </div>
                   </div>
 
-                  {test.userAttempts && test.userAttempts.length > 0 && (
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Score
-                        </p>
-                        <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {test.userAttempts[0].score}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Rank
-                        </p>
-                        <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          #{test.userAttempts[0].rank}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Score
+                      </p>
+                      <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {attempt.score}
+                      </p>
+                    </div>
+                    {attempt.status === 'COMPLETED' ? (
                       <button
-                        onClick={() => router.push(`/results/${test.userAttempts![0].attemptId}`)}
+                        onClick={() => router.push(`/results/${attempt.attemptId}`)}
                         className="px-4 py-2 bg-[#2596be] text-white rounded-lg hover:bg-[#1e7ca0] font-medium"
                       >
                         View Result
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      <button
+                        disabled
+                        className={`px-4 py-2 rounded-lg font-medium opacity-50 cursor-not-allowed ${
+                          darkMode ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        In Progress
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -150,5 +193,14 @@ export default function HistoryPage() {
         )}
       </main>
     </div>
+  );
+}
+
+// Add XCircle for error state
+function XCircle({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
   );
 }

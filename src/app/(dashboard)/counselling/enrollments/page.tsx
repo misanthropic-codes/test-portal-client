@@ -408,7 +408,7 @@ export default function CounsellingEnrollmentsPage() {
             <button
               onClick={() => {
                 window.location.href =
-                  process.env.NEXT_PUBLIC_MAIN_APP_URL + "/counselling/jee";
+                  "https://www.theaspiringengineers.com/counselling";
               }}
               className="px-6 py-3 bg-[#2596be] hover:bg-[#1e7ca0] text-white rounded-lg transition-colors inline-flex items-center gap-2"
             >

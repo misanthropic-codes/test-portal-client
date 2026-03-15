@@ -295,7 +295,7 @@ export default function ResultsPage() {
                             {answer.questionNumber || index + 1}
                           </span>
                           <span className={`${darkMode ? 'text-white' : 'text-gray-900'} line-clamp-2`}>
-                            {answer.questionText.replace(/<[^>]+>/g, '')}
+                            {(answer.questionText || '').replace(/<[^>]+>/g, '')}
                           </span>
                         </div>
                     <div className="flex items-center gap-2">
@@ -400,7 +400,7 @@ export default function ResultsPage() {
                           )}
 
                           {/* Explanation */}
-                          {answer.solutionText && (
+                          {(answer.solutionText || (answer as any).explanation) && (
                             <div className={`p-4 rounded-lg mt-4 ${
                               darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
                             }`}>
@@ -408,7 +408,7 @@ export default function ResultsPage() {
                                 Explanation
                               </p>
                               <div className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-                                <MathRenderer content={answer.solutionText} />
+                                <MathRenderer content={answer.solutionText || (answer as any).explanation || ''} />
                               </div>
                             </div>
                           )}
