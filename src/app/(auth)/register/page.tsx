@@ -202,7 +202,7 @@ export default function RegisterPage() {
                       ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                       : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                   }`}
-                  placeholder="John Doe"
+                  placeholder="Enter Full Name"
                 />
               </div>
 
@@ -226,7 +226,7 @@ export default function RegisterPage() {
                       ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                       : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                   }`}
-                  placeholder="your@email.com"
+                  placeholder="Enter Email Address"
                 />
               </div>
 
@@ -250,7 +250,7 @@ export default function RegisterPage() {
                       ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                       : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                   }`}
-                  placeholder="••••••••"
+                  placeholder="Enter Password"
                 />
               </div>
 
@@ -277,7 +277,7 @@ export default function RegisterPage() {
                       ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                       : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                   }`}
-                  placeholder="••••••••"
+                  placeholder="Enter Password"
                 />
               </div>
 
@@ -301,7 +301,7 @@ export default function RegisterPage() {
                       ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                       : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"
                   }`}
-                  placeholder="+919876543210"
+                  placeholder="9876543210"
                 />
               </div>
 
@@ -349,6 +349,7 @@ export default function RegisterPage() {
                 required
                 min={new Date().getFullYear()}
                 max={new Date().getFullYear() + 5}
+                placeholder="Enter Target Year"
                 className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                   darkMode
                     ? "bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-[#2596be] focus:ring-1 focus:ring-[#2596be]"

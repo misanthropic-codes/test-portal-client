@@ -64,11 +64,13 @@ export default function TestsPage() {
   useEffect(() => {
     if (categoryParam && testsData) {
       // Try to find a match in the actual category names (case-insensitive)
-      const normalizedParam = categoryParam.toLowerCase().replace(/[-_]/g, ' ');
-      const match = testsData.categories.find(cat => 
-        cat.category.toLowerCase().includes(normalizedParam) || 
-        normalizedParam.includes(cat.category.toLowerCase())
-      );
+      const normalize = (s: string) => s.toLowerCase().replace(/[-_\s]/g, '');
+      const normalizedParam = normalize(categoryParam);
+      
+      const match = testsData.categories.find(cat => {
+        const normalizedCat = normalize(cat.category);
+        return normalizedCat.includes(normalizedParam) || normalizedParam.includes(normalizedCat);
+      });
       
       if (match) {
         setSelectedCategory(match.category);
