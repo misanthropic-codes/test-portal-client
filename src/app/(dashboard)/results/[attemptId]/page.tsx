@@ -10,7 +10,7 @@ import { MathRenderer } from '@/components/MathRenderer';
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [result, setResult] = useState<{
     answerKey: AnswerKeyResponse['data'];
     summary: TestResultResponse['data'] | null;
@@ -33,6 +33,9 @@ export default function ResultsPage() {
   }, []);
 
   useEffect(() => {
+    // Wait for auth state to be restored from storage before redirecting
+    if (authLoading) return;
+
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -66,7 +69,7 @@ export default function ResultsPage() {
     };
 
     loadResult();
-  }, [params.attemptId, isAuthenticated, router]);
+  }, [params.attemptId, isAuthenticated, authLoading, router]);
 
   const toggleQuestion = (questionId: string) => {
     setExpandedQuestions(prev => {
@@ -136,8 +139,8 @@ export default function ResultsPage() {
       marksObtained += q.marksObtained || 0;
       timeTaken += q.timeSpent || 0;
 
-      const attempted = q.yourAnswer && 
-        (q.yourAnswer.selectedOptions?.length > 0 || q.yourAnswer.numericalAnswer !== null);
+      const attempted = q.yourAnswer &&
+        ((q.yourAnswer.selectedOptions?.length ?? 0) > 0 || q.yourAnswer.numericalAnswer !== null);
 
       if (attempted) {
         if (q.isCorrect) correct++;
@@ -148,19 +151,23 @@ export default function ResultsPage() {
     });
   });
 
-  const pct = summary?.score.percentage ?? (totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0);
+  const pct = summary?.percentage ?? (totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0);
   const percentageColor = pct >= 75 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-red-500';
-  
+
   const testTitle = summary?.testTitle || answerKey.testTitle || 'Test Result';
-  const displayMarksObtained = summary?.score.marksObtained ?? marksObtained;
-  const displayTotalMarks = summary?.score.totalMarks ?? totalMarks;
-  const displayTimeTaken = summary?.timeAnalysis.totalTimeSpent ?? timeTaken;
-  
-  const statsTotal = summary?.score.totalQuestions ?? totalQuestions;
-  const statsAttempted = summary?.score.attemptedQuestions ?? (correct + incorrect);
-  const statsCorrect = summary?.score.correctAnswers ?? correct;
-  const statsIncorrect = summary?.score.incorrectAnswers ?? incorrect;
-  const statsUnattempted = summary?.score.unanswered ?? unattempted;
+  // New API: score is a flat number, stats come from subjectWise[0]
+  const displayMarksObtained = summary?.score ?? marksObtained;
+  const displayTotalMarks = summary?.totalMarks ?? totalMarks;
+  const displayTimeTaken = summary?.timeTaken ?? timeTaken;
+  const displayRank = summary?.rank ?? null;
+  const displayPercentile = summary?.percentile ?? null;
+
+  const subjectWise0 = summary?.subjectWise?.[0];
+  const statsCorrect = subjectWise0?.correctAnswers ?? correct;
+  const statsIncorrect = subjectWise0?.incorrectAnswers ?? incorrect;
+  const statsUnattempted = subjectWise0?.unattempted ?? unattempted;
+  const statsAttempted = statsCorrect + statsIncorrect;
+  const statsTotal = statsCorrect + statsIncorrect + statsUnattempted || totalQuestions;
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-[#071219]' : 'bg-gray-50'} p-4 sm:p-6 lg:p-8`}>
@@ -193,7 +200,7 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Score</p>
               <p className={`text-2xl font-bold ${percentageColor}`}>
@@ -215,11 +222,27 @@ export default function ResultsPage() {
             <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Accuracy</p>
               <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsAttempted > 0 
+                {statsAttempted > 0
                   ? ((statsCorrect / statsAttempted) * 100).toFixed(1)
                   : 0}%
               </p>
             </div>
+            {displayRank !== null && (
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Rank</p>
+                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  #{displayRank}
+                </p>
+              </div>
+            )}
+            {displayPercentile !== null && (
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Percentile</p>
+                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {displayPercentile.toFixed(1)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -341,43 +364,67 @@ export default function ResultsPage() {
                           {answer.options && answer.options.length > 0 && (
                             <div className="space-y-2 mb-4">
                               {answer.options.map((option, optIndex) => {
-                                const optionLabel = getOptionLabel(option.id);
-                                const isSelected = answer.yourAnswer?.selectedOptions?.includes(option.id);
-                                const isCorrectOpt = answer.correctAnswer?.selectedOptions?.includes(option.id) || option.isCorrect;
-                          
-                                let optionClass = darkMode ? 'bg-white/5 text-gray-300' : 'bg-white text-gray-700';
-                                if (isCorrectOpt) {
-                                  optionClass = 'bg-green-500/20 text-green-500 border-green-500';
-                                } else if (isSelected && !isCorrectOpt) {
-                                  optionClass = 'bg-red-500/20 text-red-500 border-red-500';
-                                }
+                                const optionLabel = String.fromCharCode(65 + optIndex); // A, B, C, D
+                                const isSelected = answer.yourAnswer?.selectedOptions?.includes(optionLabel);
+                                const isUnattempted = !answer.yourAnswer?.selectedOptions?.length;
                                 
+                                // Determine if this is the correct option.
+                                // Priority: option.isCorrect (when backend sends it) → 
+                                //   user selected + question correct (fallback) →
+                                //   correctAnswer.selectedOptions letter match (another fallback)
+                                const isCorrectFromApi = option.isCorrect;
+                                const isCorrectFromUserRight = !!(isSelected && answer.isCorrect);
+                                const isCorrectFromCorrectAnswer = answer.correctAnswer?.selectedOptions?.includes(optionLabel);
+                                const isCorrectOpt = isCorrectFromApi || isCorrectFromUserRight || !!isCorrectFromCorrectAnswer;
+
+                                // Determine styling:
+                                // 1. Green  – correct option (user right, or API flagged, or wrong/skipped but API knows which is right)  
+                                // 2. Red    – user's wrong pick
+                                // 3. Yellow – correct option on a skipped (unattempted) question
+                                let optionClass = darkMode ? 'bg-white/5 text-gray-300' : 'bg-white text-gray-700';
+                                let borderClass = darkMode ? 'border-white/10' : 'border-gray-200';
+                                let badge: React.ReactNode = null;
+
+                                if (isSelected && answer.isCorrect) {
+                                  // User picked this and got it right → green
+                                  optionClass = 'bg-green-500/20 text-green-500';
+                                  borderClass = 'border-green-500';
+                                  badge = <span className="ml-2 text-green-500 whitespace-nowrap font-semibold">✓ Correct</span>;
+                                } else if (isSelected && !answer.isCorrect) {
+                                  // User picked this but got it wrong → red
+                                  optionClass = 'bg-red-500/20 text-red-500';
+                                  borderClass = 'border-red-500';
+                                  badge = <span className="ml-2 text-red-500 whitespace-nowrap font-semibold">✗ Your answer</span>;
+                                } else if (isCorrectOpt && !answer.isCorrect) {
+                                  // This is the correct option on a question user got wrong or skipped
+                                  if (isUnattempted) {
+                                    // Skipped → yellow
+                                    optionClass = 'bg-yellow-500/20 text-yellow-500';
+                                    borderClass = 'border-yellow-500';
+                                    badge = <span className="ml-2 text-yellow-500 whitespace-nowrap font-semibold">● Correct answer</span>;
+                                  } else {
+                                    // Wrong → green (show what was right)
+                                    optionClass = 'bg-green-500/20 text-green-500';
+                                    borderClass = 'border-green-500';
+                                    badge = <span className="ml-2 text-green-500 whitespace-nowrap font-semibold">✓ Correct answer</span>;
+                                  }
+                                }
+
                                 return (
-                                  <div 
-                                    key={option.id}
-                                    className={`p-3 rounded-lg border flex flex-col gap-2 ${optionClass} ${
-                                      darkMode ? 'border-white/10' : 'border-gray-200'
-                                    }`}
+                                  <div
+                                    key={optIndex}
+                                    className={`p-3 rounded-lg border flex flex-col gap-2 ${optionClass} ${borderClass}`}
                                   >
                                     <div className="flex items-start">
                                       <span className="font-bold mr-2 mt-1">{optionLabel}.</span>
                                       <div className="flex-1">
                                         <MathRenderer content={option.text} />
                                       </div>
-                                      {isCorrectOpt && <span className="ml-2 text-green-500 whitespace-nowrap">✓ Correct</span>}
-                                      {isSelected && !isCorrectOpt && <span className="ml-2 text-red-500 whitespace-nowrap">✗ Your answer</span>}
+                                      {badge}
                                     </div>
-                                    {option.imageUrl && (
-                                      <div className="mt-2 pl-6">
-                                        <img 
-                                          src={option.imageUrl} 
-                                          alt={`Option ${optionLabel}`} 
-                                          className="max-h-32 rounded border bg-white object-contain"
-                                        />
-                                      </div>
-                                    )}
                                   </div>
                                 );
+
                               })}
                             </div>
                           )}

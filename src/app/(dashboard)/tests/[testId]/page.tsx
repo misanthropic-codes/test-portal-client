@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function TestStartPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [testData, setTestData] = useState<TestDetails | null>(null);
   const [inProgressAttempt, setInProgressAttempt] = useState<InProgressAttemptResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +31,7 @@ export default function TestStartPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -58,7 +59,7 @@ export default function TestStartPage() {
     };
 
     fetchTestData();
-  }, [params.testId, isAuthenticated, router]);
+  }, [params.testId, isAuthenticated, authLoading, router]);
 
   const handleStartTest = async () => {
     if (!testData) return;

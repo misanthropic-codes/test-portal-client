@@ -53,92 +53,56 @@ export interface AttemptResultResponse {
 
 export interface TestResultResponse {
   success: boolean;
-  message: string;
   data: {
-    resultId: string;
     attemptId: string;
     testId: string;
     testTitle: string;
     userId: string;
-    userName: string;
+    score: number;
+    totalMarks: number;
+    percentage: number;
+    rank: number;
+    totalAttempts: number;
+    percentile: number;
+    timeTaken: number;
     submittedAt: string;
-    score: {
-      totalQuestions: number;
-      attemptedQuestions: number;
-      correctAnswers: number;
-      incorrectAnswers: number;
-      unanswered: number;
-      marksObtained: number;
-      totalMarks: number;
-      percentage: number;
-      accuracy: number;
-    };
-    sectionWiseScore: {
+    sectionWise: {
       sectionName: string;
-      totalQuestions: number;
+      score: number;
+      totalMarks: number;
       correctAnswers: number;
       incorrectAnswers: number;
-      unanswered: number;
-      marksObtained: number;
-      totalMarks: number;
-      percentage: number;
+      unattempted: number;
     }[];
-    subjectWiseScore: {
+    subjectWise: {
       subject: string;
-      totalQuestions: number;
+      score: number;
+      totalMarks: number;
       correctAnswers: number;
       incorrectAnswers: number;
-      marksObtained: number;
-      totalMarks: number;
-      percentage: number;
+      unattempted: number;
+      timeTaken: number;
+      accuracy: number;
     }[];
-    difficultyWiseScore: {
-      easy: {
-        totalQuestions: number;
-        correctAnswers: number;
-        incorrectAnswers: number;
-        accuracy: number;
-      };
-      medium: {
-        totalQuestions: number;
-        correctAnswers: number;
-        incorrectAnswers: number;
-        accuracy: number;
-      };
-      hard: {
-        totalQuestions: number;
-        correctAnswers: number;
-        incorrectAnswers: number;
-        accuracy: number;
-      };
+    difficultyWise: {
+      easy: { correct: number; incorrect: number; unattempted: number };
+      medium: { correct: number; incorrect: number; unattempted: number };
+      hard: { correct: number; incorrect: number; unattempted: number };
     };
-    rank: {
-      rank: number;
-      totalParticipants: number;
-      percentile: number;
-      topPercentage: number;
-    };
-    timeAnalysis: {
-      totalTimeSpent: number;
-      averageTimePerQuestion: number;
-      fastestQuestion: number;
-      slowestQuestion: number;
+    speedAccuracy: {
+      speed: string;
+      accuracy: string;
     };
     comparison: {
-      averageScore: number;
+      averageScore: string;
+      topperScore: number;
       yourScore: number;
-      highestScore: number;
-      lowestScore: number;
-      performanceVsAverage: string;
     };
-    recommendations: string[];
-    strongAreas: string[];
-    weakAreas: string[];
   };
 }
 
 export interface AnswerKeyOption {
-  id: string;
+  id?: string;
   text: string;
   isCorrect: boolean;
   imageUrl?: string;
@@ -152,11 +116,11 @@ export interface AnswerKeyQuestion {
   options: AnswerKeyOption[];
   questionImageUrl?: string;
   correctAnswer: {
-    selectedOptions: string[];
+    selectedOptions?: string[];
     numericalAnswer?: number | null;
   } | null;
   yourAnswer: {
-    selectedOptions: string[];
+    selectedOptions?: string[];
     numericalAnswer?: number | null;
   } | null;
   isCorrect: boolean;

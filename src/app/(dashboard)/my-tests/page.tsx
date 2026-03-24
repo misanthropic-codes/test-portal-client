@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function MyTestsPage() {
   const router = useRouter();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, loading: authLoading, logout } = useAuth();
   const [data, setData] = useState<MyTestsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +35,7 @@ export default function MyTestsPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -55,7 +56,7 @@ export default function MyTestsPage() {
     };
 
     fetchMyTests();
-  }, [isAuthenticated, router, packageIdParam]);
+  }, [isAuthenticated, authLoading, router, packageIdParam]);
 
   useEffect(() => {
     if (categoryParam && data) {

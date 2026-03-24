@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function PackageDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [packageData, setPackageData] = useState<Package | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +28,7 @@ export default function PackageDetailsPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -55,7 +56,7 @@ export default function PackageDetailsPage() {
     };
 
     fetchPackageDetails();
-  }, [params.packageId, isAuthenticated, router]);
+  }, [params.packageId, isAuthenticated, authLoading, router]);
 
   if (loading) {
     return (

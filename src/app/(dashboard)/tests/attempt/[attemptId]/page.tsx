@@ -10,7 +10,7 @@ import { MathRenderer } from '@/components/MathRenderer';
 export default function TestAttemptPage() {
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const attemptId = params.attemptId as string;
 
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,8 @@ export default function TestAttemptPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -229,7 +231,7 @@ export default function TestAttemptPage() {
     };
 
     loadTestData();
-  }, [attemptId, isAuthenticated, router]);
+  }, [attemptId, isAuthenticated, authLoading, router]);
 
   // Timer countdown
   useEffect(() => {
