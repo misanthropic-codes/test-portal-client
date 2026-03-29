@@ -405,6 +405,22 @@ export default function MyTestsPage() {
                         </p>
                       </div>
                     )}
+
+                    {/* Action Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTestClick(test);
+                      }}
+                      className={`mt-4 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold transition-all ${
+                        darkMode
+                          ? 'bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20'
+                          : 'bg-[#2596be]/10 text-[#2596be] hover:bg-[#2596be]/20'
+                      }`}
+                    >
+                      <Play className="w-4 h-4" />
+                      {test.isAttempted || test.attemptCount > 0 ? 'View Details' : 'Start Test'}
+                    </button>
                   </div>
                 ))}
               </div>
